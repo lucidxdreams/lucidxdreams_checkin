@@ -551,18 +551,32 @@
 
         // Check auth state on load
         async function checkAuth() {
+            console.log('Checking auth state...');
+            console.log('Supabase URL:', CONFIG.SUPABASE_URL);
+            console.log('Supabase client initialized:', !!supabase);
+            
             if (!supabase) {
-                // Demo mode - show dashboard with sample data
+                console.warn('Supabase not configured - showing demo mode');
                 showDashboard();
                 loadDemoData();
                 return;
             }
 
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                currentUser = user;
-                showDashboard();
-                loadCustomers();
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) {
+                    console.log('No active session:', error.message);
+                    // Stay on login screen
+                    return;
+                }
+                if (user) {
+                    console.log('User authenticated:', user.email);
+                    currentUser = user;
+                    showDashboard();
+                    loadCustomers();
+                }
+            } catch (err) {
+                console.error('Auth check failed:', err);
             }
         }
 
@@ -579,23 +593,33 @@
 
             if (!supabase) {
                 // Demo mode
+                console.log('Demo mode - skipping Supabase auth');
                 showDashboard();
                 loadDemoData();
                 return;
             }
 
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
+            try {
+                console.log('Attempting login for:', email);
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
 
-            if (error) {
-                errorEl.textContent = error.message;
+                if (error) {
+                    console.error('Login error:', error);
+                    errorEl.textContent = error.message;
+                    errorEl.style.display = 'block';
+                } else {
+                    console.log('Login successful:', data.user.email);
+                    currentUser = data.user;
+                    showDashboard();
+                    loadCustomers();
+                }
+            } catch (err) {
+                console.error('Login exception:', err);
+                errorEl.textContent = 'Connection error. Please try again.';
                 errorEl.style.display = 'block';
-            } else {
-                currentUser = data.user;
-                showDashboard();
-                loadCustomers();
             }
         }
 
@@ -614,18 +638,40 @@
         }
 
         async function loadCustomers() {
-            const { data, error } = await supabase
-                .from('customers')
-                .select('*')
-                .order('created_at', { ascending: false });
+            try {
+                console.log('Loading customers from Supabase...');
+                const { data, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error('Error loading customers:', error);
-                return;
+                if (error) {
+                    console.error('Error loading customers:', error);
+                    // Show error in UI
+                    document.getElementById('tableLoading').style.display = 'none';
+                    document.getElementById('emptyState').innerHTML = `
+                        <div class="icon">⚠️</div>
+                        <h3>Database Error</h3>
+                        <p>${error.message}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Check: 1) Table exists 2) RLS policies configured 3) User has access</p>
+                    `;
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                console.log('Loaded', data?.length || 0, 'customers');
+                allCustomers = data || [];
+                renderCustomers(allCustomers);
+            } catch (err) {
+                console.error('Exception loading customers:', err);
+                document.getElementById('tableLoading').style.display = 'none';
+                document.getElementById('emptyState').innerHTML = `
+                    <div class="icon">⚠️</div>
+                    <h3>Connection Error</h3>
+                    <p>${err.message}</p>
+                `;
+                document.getElementById('emptyState').style.display = 'block';
             }
-
-            allCustomers = data || [];
-            renderCustomers(allCustomers);
         }
 
         function loadDemoData() {

@@ -1,0 +1,25 @@
+# Nixpacks configuration for Railway deployment
+# Installs system dependencies required for barcode scanning libraries
+
+[phases.setup]
+nixPkgs = [
+    "python311",
+    "zlib",
+    "libjpeg",
+    "libpng",
+    "mesa",
+    "libglvnd",
+    "zbar",
+    "cmake",
+    "gcc",
+    "glib",
+    "xorg.libSM",
+    "xorg.libXext",
+    "xorg.libXrender"
+]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
