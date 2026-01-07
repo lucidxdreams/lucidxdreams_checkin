@@ -7,6 +7,7 @@ Parses AAMVA-compliant driver's license data
 import re
 import base64
 import io
+import os
 import random
 import json
 import logging
@@ -46,8 +47,9 @@ except Exception as e:
     PYZBAR_AVAILABLE = False
     logger.warning(f"pyzbar not available: {e}")
 
-# Load DC addresses for non-DC IDs
-with open('dc_addresses.json', 'r') as f:
+# Load DC addresses for non-DC IDs (use absolute path for production compatibility)
+_dc_addresses_path = os.path.join(os.path.dirname(__file__), 'dc_addresses.json')
+with open(_dc_addresses_path, 'r') as f:
     DC_ADDRESSES = json.load(f)['addresses']
 
 

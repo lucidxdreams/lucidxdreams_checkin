@@ -11,25 +11,22 @@ from quickbase_browser_automation import QuickBaseFormAutomation
 import os
 import logging
 
-
-from flask_cors import CORS
-
-# Update this after you deploy frontend
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lucidxdreams.github.io/lucidxdreams_checkin/')
-
-CORS(app, origins=[
-    FRONTEND_URL,
-    'http://localhost:8080',  # For local development
-    'http://127.0.0.1:8080'
-])
-
-
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS with allowed origins
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lucidxdreams.github.io')
+CORS(app, origins=[
+    FRONTEND_URL,
+    'https://lucidxdreams.github.io',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'http://localhost:5001',
+    'http://127.0.0.1:5001'
+])
 
 # Increase max content length to 50MB for large images
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
@@ -37,14 +34,28 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 # Frontend directory (HTML files are in docs folder)
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'docs')
 
-# Initialize browser automation (headless=False so user can see the form)
-qb_automation = QuickBaseFormAutomation(headless=False)
+# Lazy initialization of browser automation to prevent startup crashes
+_qb_automation = None
+
+def get_qb_automation():
+    """Lazy load QuickBase automation to prevent startup crashes in Railway"""
+    global _qb_automation
+    if _qb_automation is None:
+        # Use headless=True in production (Railway), False for local development
+        is_production = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT')
+        _qb_automation = QuickBaseFormAutomation(headless=bool(is_production))
+        logger.info(f"QuickBase automation initialized (headless={bool(is_production)})")
+    return _qb_automation
 
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'service': 'medical-card-backend'})
+    """Health check endpoint - responds quickly without loading heavy dependencies"""
+    return jsonify({
+        'status': 'healthy', 
+        'service': 'medical-card-backend',
+        'version': '1.0.0'
+    }), 200
 
 
 @app.route('/api/extract-id', methods=['POST'])
@@ -424,7 +435,7 @@ def submit_application():
         
         # Submit via browser automation (auto_submit=False to allow manual review)
         logger.info(f"Processing {resident_type.upper()} application for {data['firstName']} {data['lastName']}")
-        result = qb_automation.submit_application(data, auto_submit=False, resident_type=resident_type)
+        result = get_qb_automation().submit_application(data, auto_submit=False, resident_type=resident_type)
         
         if result.get('success'):
             logger.info(f"{resident_type.upper()} application form filled successfully: {data['email']}")

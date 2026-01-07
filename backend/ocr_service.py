@@ -38,8 +38,9 @@ except Exception as e:
     PADDLE_AVAILABLE = False
     logger.warning(f"PaddleOCR not available: {e}")
 
-# Load DC addresses
-with open('dc_addresses.json', 'r') as f:
+# Load DC addresses (use absolute path for production compatibility)
+_dc_addresses_path = os.path.join(os.path.dirname(__file__), 'dc_addresses.json')
+with open(_dc_addresses_path, 'r') as f:
     DC_ADDRESSES = json.load(f)['addresses']
 
 # Initialize OCR engines (lazy loading)
@@ -231,11 +232,6 @@ def extract_text_paddle_single(paddle_ocr, img_array) -> Tuple[str, float]:
         return "", 0.0
     except Exception:
         return "", 0.0
-
-
-    except Exception as e:
-        logger.error(f"PaddleOCR error: {e}")
-        raise
 
 def save_debug_image(image: Image.Image, name: str):
     """Save debug image to disk"""
