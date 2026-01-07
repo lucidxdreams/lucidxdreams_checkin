@@ -1917,7 +1917,6 @@
                 startLiveScanner();
             }
 
-            // Initialize ZXing Reader
             async function getZXingReader() {
                 if (zxingReader) return zxingReader;
 
@@ -1927,8 +1926,16 @@
                         throw new Error('ZXingWasm library not loaded');
                     }
 
-                    // Configure for PDF417
-                    const reader = await ZXingWasmReader.ZXingReaderModule();
+                    // Configure for PDF417 with explicit WASM location
+                    // Since we host it in docs/lib/zxing/, we need to tell it where to find .wasm
+                    const reader = await ZXingWasmReader.ZXingReaderModule({
+                        locateFile: (path, prefix) => {
+                            if (path.endsWith('.wasm')) {
+                                return 'lib/zxing/zxing_reader.wasm';
+                            }
+                            return prefix + path;
+                        }
+                    });
                     zxingReader = reader;
                     return reader;
                 } catch (err) {

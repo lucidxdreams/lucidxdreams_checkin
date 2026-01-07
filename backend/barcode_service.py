@@ -136,86 +136,28 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     import cv2
     import numpy as np
     
-    variants = []
-    
-    # Convert PIL directly to OpenCV BGR
-    # (PIL is RGB, OpenCV is BGR)
-    pil_img = np.array(image)
-    if len(pil_img.shape) < 3:
-        pil_img = cv2.cvtColor(pil_img, cv2.COLOR_GRAY2BGR)
-    else:
-        pil_img = cv2.cvtColor(pil_img, cv2.COLOR_RGB2BGR)
-        
-    gray = cv2.cvtColor(pil_img, cv2.COLOR_BGR2GRAY)
-    height, width = gray.shape
-    
-    # Add raw grayscale variant (as Image object for zxing wrapper)
+    # Limit variants to the most effective ones for speed
+    # 1. Grayscale (Native)
     variants.append((Image.fromarray(gray), "cv_gray"))
     
-    # 0. Add padding around image edges (helps detect barcodes near frame edges)
-    # This is crucial for mobile photos where barcode is at the edge
-    padding = 50
-    padded = cv2.copyMakeBorder(gray, padding, padding, padding, padding, 
-                                 cv2.BORDER_CONSTANT, value=255)
-    variants.append((Image.fromarray(padded), "cv_padded"))
-    
-    # 1. Resize/Upscale Logic (Upscaling often helps small barcodes)
-    # Check if image is too small for PDF417 details
-    if width < 1500:
-        logger.info(f"Upscaling image from {width}x{height} to better detect PDF417")
-        # Upscale 2x using Cubic interpolation
-        upscaled = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
-        variants.append((Image.fromarray(upscaled), "cv_upscaled_2x"))
-        
-        # Add a sharpened upscaled variant
-        sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-        upscaled_sharp = cv2.filter2D(upscaled, -1, sharpen_kernel)
-        variants.append((Image.fromarray(upscaled_sharp), "cv_upscaled_sharp"))
-        
-        # Adaptive Threshold on Upscaled
-        up_thresh = cv2.adaptiveThreshold(upscaled, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                          cv2.THRESH_BINARY, 21, 10)
-        variants.append((Image.fromarray(up_thresh), "cv_upscaled_adaptive"))
-        
-        # Padded + Upscaled for edge barcodes
-        upscaled_padded = cv2.resize(padded, (padded.shape[1]*2, padded.shape[0]*2), 
-                                      interpolation=cv2.INTER_CUBIC)
-        variants.append((Image.fromarray(upscaled_padded), "cv_upscaled_padded"))
-
-    # 2. Gaussian Blur + Adaptive Threshold (The "Scanner App" look)
-    # This is usually the best for documents with uneven lighting
+    # 2. Thresholding (very effective for barcodes)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY, 21, 10)
-    variants.append((Image.fromarray(thresh), "cv_adaptive_gauss"))
+    variants.append((Image.fromarray(thresh), "cv_adaptive_thresh"))
+    
+    # 3. Upscaled (only if small and needed)
+    if width < 1200:
+         upscaled = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
+         variants.append((Image.fromarray(upscaled), "cv_upscaled_2x"))
 
-    # 3. Super High Contrast (CLAHE) - Contrast Limited Adaptive Histogram Equalization
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    cl1 = clahe.apply(gray)
-    variants.append((Image.fromarray(cl1), "cv_clahe"))
+    # 4. Rotated (Limited angles for speed)
+    for angle in [2, -2]:
+         center = (width // 2, height // 2)
+         M = cv2.getRotationMatrix2D(center, angle, 1.0)
+         rotated = cv2.warpAffine(gray, M, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=255)
+         variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
     
-    # 3b. CLAHE on padded image for edge barcodes
-    cl1_padded = clahe.apply(padded)
-    variants.append((Image.fromarray(cl1_padded), "cv_clahe_padded"))
-    
-    # 4. Standard Sharpening
-    sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-    sharpened = cv2.filter2D(gray, -1, sharpen_kernel)
-    variants.append((Image.fromarray(sharpened), "cv_sharpened"))
-    
-    # 5. Dilation (to thicken bars if they are too thin/faded)
-    kernel = np.ones((2,2), np.uint8) 
-    dilated = cv2.erode(thresh, kernel, iterations=1) # Erode in CV is Dilation for black ink
-    variants.append((Image.fromarray(dilated), "cv_dilated"))
-    
-    # 6. Try different rotations (barcode might be slightly tilted)
-    for angle in [2, -2, 5, -5]:
-        center = (width // 2, height // 2)
-        matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-        rotated = cv2.warpAffine(gray, matrix, (width, height), 
-                                  borderMode=cv2.BORDER_CONSTANT, borderValue=255)
-        variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
-
     return variants
 
 
@@ -301,9 +243,11 @@ def decode_barcode_pdf417decoder(image: Image.Image) -> Optional[str]:
                 logger.info(f"✅ pdf417decoder decoded barcode in {elapsed:.3f}s ({len(barcode_text)} chars)")
                 return barcode_text
         
-        # Try with preprocessed variants
+        # Try with preprocessed variants (but limit attempts to prevent timeout)
+        # Limit to 3 variants max for pdf417decoder as it is very slow
         variants = preprocess_for_barcode(image)
-        for img, variant_name in variants:
+        for i, (img, variant_name) in enumerate(variants):
+            if i >= 3: break # Optimize speed
             try:
                 decoder = PDF417Decoder(img)
                 if decoder.decode() > 0:
