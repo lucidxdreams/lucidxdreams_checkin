@@ -1778,7 +1778,7 @@
         let html5QrCode = null;
         let scannerTimeout = null;
         let scannerStartTime = null;
-        const SCANNER_TIMEOUT_MS = 15000; // 15 seconds before showing manual upload option
+        const SCANNER_TIMEOUT_MS = 10000; // 10 seconds before showing manual upload option
 
         // Handle Front ID Upload (direct file input - uses native mobile options)
         function handleFrontIdUpload(input) {
@@ -1831,11 +1831,18 @@
                 html5QrCode = new Html5Qrcode('reader');
                 
                 const config = {
-                    fps: 10,
-                    qrbox: { width: 250, height: 150 },
+                    fps: 30, // Maximum FPS for instant detection
+                    qrbox: { width: 280, height: 180 }, // Larger scan area for PDF417
                     formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
                     aspectRatio: 1.5,
                     disableFlip: false,
+                    videoConstraints: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        focusMode: 'continuous',
+                        advanced: [{ focusMode: 'continuous' }]
+                    },
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true
                     }
@@ -1940,9 +1947,15 @@
             }, 800);
         }
 
-        // Barcode scan error callback (called frequently, just log)
+        // Barcode scan error callback (called frequently when no barcode detected)
+        let lastErrorTime = 0;
         function onBarcodeScanError(errorMessage) {
-            // This is called frequently when no barcode is detected - don't log
+            // Log only every 3 seconds to avoid console spam
+            const now = Date.now();
+            if (now - lastErrorTime > 3000) {
+                console.log('Scanning... (no barcode detected yet)');
+                lastErrorTime = now;
+            }
         }
 
         // Handle Back ID Manual Upload
