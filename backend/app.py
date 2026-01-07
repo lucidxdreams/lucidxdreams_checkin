@@ -11,6 +11,20 @@ from quickbase_browser_automation import QuickBaseFormAutomation
 import os
 import logging
 
+
+from flask_cors import CORS
+
+# Update this after you deploy frontend
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://lucidxdreams.github.io/lucidxdreams_checkin/')
+
+CORS(app, origins=[
+    FRONTEND_URL,
+    'http://localhost:8080',  # For local development
+    'http://127.0.0.1:8080'
+])
+
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
