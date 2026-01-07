@@ -222,6 +222,7 @@ def preprocess_for_barcode(image: Image.Image) -> list:
 def decode_barcode_zxing(image: Image.Image) -> Optional[str]:
     """
     Decode PDF417 barcode using zxing-cpp with multiple preprocessing attempts.
+    ONLY accepts PDF417 format - ignores other barcode types like DataBar, QR, etc.
     """
     if not ZXING_AVAILABLE:
         return None
@@ -241,30 +242,37 @@ def decode_barcode_zxing(image: Image.Image) -> Optional[str]:
                 
                 if results:
                     for result in results:
+                        # CRITICAL: Only accept PDF417 barcodes for driver's licenses
+                        format_name = result.format.name.upper() if hasattr(result.format, 'name') else str(result.format).upper()
+                        
+                        if 'PDF417' not in format_name and 'PDF_417' not in format_name:
+                            logger.debug(f"Ignoring non-PDF417 barcode: {format_name}")
+                            continue
+                        
                         barcode_text = result.text
                         if barcode_text and len(barcode_text) > 50:  # AAMVA barcodes are long
                             elapsed = time.time() - start_time
-                            logger.info(f"✅ zxing-cpp decoded {result.format.name} via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
+                            logger.info(f"✅ zxing-cpp decoded PDF417 via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
                             return barcode_text
-                    
-                    # Return first result even if short - sometimes it's split
-                    elapsed = time.time() - start_time
-                    logger.info(f"✅ zxing-cpp decoded {results[0].format.name} via {variant_name} in {elapsed:.3f}s")
-                    return results[0].text
                     
             except Exception as e:
                 # Fallback: Convert to numpy if PIL fails
                 try:
                     results = zxingcpp.read_barcodes(np.array(img))
                     if results:
-                        logger.info(f"✅ zxing-cpp decoded via {variant_name} (numpy fallback)")
-                        return results[0].text
+                        for result in results:
+                            format_name = result.format.name.upper() if hasattr(result.format, 'name') else str(result.format).upper()
+                            if 'PDF417' in format_name or 'PDF_417' in format_name:
+                                barcode_text = result.text
+                                if barcode_text and len(barcode_text) > 50:
+                                    logger.info(f"✅ zxing-cpp decoded PDF417 via {variant_name} (numpy fallback)")
+                                    return barcode_text
                 except Exception:
                     logger.debug(f"zxing variant {variant_name} failed: {e}")
                 continue
         
         elapsed = time.time() - start_time
-        logger.warning(f"zxing-cpp found no barcodes after trying {len(variants)} variants in {elapsed:.3f}s")
+        logger.warning(f"zxing-cpp found no PDF417 barcodes after trying {len(variants)} variants in {elapsed:.3f}s")
         return None
             
     except Exception as e:

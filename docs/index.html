@@ -1954,35 +1954,38 @@
             
             html5QrCode = new Html5Qrcode('reader');
             
-            // Get viewport dimensions for optimal scanning area
-            const viewportWidth = Math.min(window.innerWidth, 480);
-            const scanWidth = Math.floor(viewportWidth * 0.95); // 95% of viewport for edge detection
-            const scanHeight = Math.floor(scanWidth * 0.6); // PDF417 aspect ratio
-            
+            // Fixed dimensions that work well for PDF417 barcodes
+            // PDF417 is typically 3:1 to 4:1 aspect ratio (width:height)
             const config = {
-                fps: 15, // Lower FPS for better processing on mobile
-                qrbox: { width: scanWidth, height: scanHeight }, // Larger scan area for edge detection
+                fps: 10, // Lower FPS for better accuracy on mobile
+                qrbox: { width: 300, height: 150 }, // Fixed size for PDF417 detection
                 formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
-                aspectRatio: 1.7778, // 16:9 for better mobile camera utilization
+                aspectRatio: 1.5, // 3:2 aspect ratio
                 disableFlip: false,
-                // Don't use native BarcodeDetector on Safari - it's incomplete
                 experimentalFeatures: { 
-                    useBarCodeDetectorIfSupported: !isIOSSafari 
-                },
-                // Verbose logging for debugging
-                verbose: false
+                    useBarCodeDetectorIfSupported: false // Always use internal decoder for consistency
+                }
             };
 
-            console.log('Starting html5-qrcode with config:', { scanWidth, scanHeight, isIOSSafari });
+            console.log('Starting html5-qrcode scanner for PDF417...');
 
-            await html5QrCode.start(
-                { facingMode: 'environment' },
-                config,
-                onBarcodeScanSuccess,
-                onBarcodeScanError
-            );
-            
-            console.log('html5-qrcode scanner started successfully');
+            try {
+                await html5QrCode.start(
+                    { facingMode: 'environment' },
+                    config,
+                    onBarcodeScanSuccess,
+                    onBarcodeScanError
+                );
+                console.log('html5-qrcode scanner started successfully');
+            } catch (err) {
+                console.error('html5-qrcode start failed:', err);
+                // Show manual upload on failure
+                document.getElementById('manualUploadSection').classList.add('visible');
+                document.getElementById('scannerPlaceholder').innerHTML = `
+                    <span class="icon">⚠️</span>
+                    <span class="text">Camera error. Please upload photo instead.</span>
+                `;
+            }
         }
 
         // Stop live scanner
