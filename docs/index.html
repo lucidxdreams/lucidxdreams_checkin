@@ -2013,7 +2013,13 @@
 
         // Barcode scan success callback
         async function onBarcodeScanSuccess(decodedText, decodedResult) {
-            console.log('Barcode scanned:', decodedText.substring(0, 50) + '...');
+            console.log('Barcode scanned! Length:', decodedText.length, 'chars');
+            console.log('Barcode preview:', decodedText.substring(0, 100) + '...');
+            
+            // Validate barcode length - AAMVA barcodes are typically 200+ chars
+            if (decodedText.length < 100) {
+                console.warn('Barcode too short for AAMVA format:', decodedText.length);
+            }
             
             // Stop the scanner
             stopLiveScanner();
