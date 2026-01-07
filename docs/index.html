@@ -538,11 +538,64 @@
             object-fit: cover;
         }
 
+        /* html5-qrcode library generated elements */
+        #reader {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 280px !important;
+            z-index: 1;
+        }
+
+        #reader video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 280px !important;
+            object-fit: cover !important;
+            border-radius: 0 !important;
+            z-index: 1;
+        }
+
+        #reader__scan_region {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 280px !important;
+            background: transparent !important;
+        }
+
+        #reader__scan_region video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 280px !important;
+            object-fit: cover !important;
+        }
+
+        /* Hide the qrbox shaded region - we have our own overlay */
+        #reader__scan_region > img,
+        #reader > img,
+        #reader__dashboard,
+        #reader__header_message {
+            display: none !important;
+        }
+
+        /* Make sure the qr-shaded regions are transparent */
+        #qr-shaded-region {
+            display: none !important;
+        }
+
         /* Scanner Frame Overlay */
         .scanner-frame {
             position: absolute;
             inset: 0;
             pointer-events: none;
+            z-index: 10;
         }
 
         /* Corner Brackets */
@@ -674,6 +727,7 @@
             justify-content: center;
             gap: 16px;
             background: linear-gradient(180deg, #0a0f1a 0%, #1a1f2e 100%);
+            z-index: 5;
         }
 
         .scanner-placeholder .icon {
@@ -1343,8 +1397,8 @@
                                 <span class="text">Initializing camera...</span>
                             </div>
                             
-                            <!-- Video element for camera feed -->
-                            <div id="reader" style="width:100%; height:100%; display:none;"></div>
+                            <!-- Video element for camera feed (html5-qrcode mounts here) -->
+                            <div id="reader"></div>
                             
                             <!-- Scanner Frame Overlay -->
                             <div class="scanner-frame" id="scannerFrame" style="display:none;">
@@ -1771,13 +1825,20 @@
             scannerStartTime = Date.now();
 
             try {
+                // Make sure reader is visible before initializing
+                readerDiv.style.display = 'block';
+                
                 html5QrCode = new Html5Qrcode('reader');
                 
                 const config = {
                     fps: 10,
-                    qrbox: { width: 280, height: 180 },
+                    qrbox: { width: 250, height: 150 },
                     formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
-                    aspectRatio: 1.5
+                    aspectRatio: 1.5,
+                    disableFlip: false,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true
+                    }
                 };
 
                 await html5QrCode.start(
@@ -1789,7 +1850,6 @@
 
                 // Hide placeholder, show camera feed with overlay
                 scannerPlaceholder.style.display = 'none';
-                readerDiv.style.display = 'block';
                 scannerFrame.style.display = 'block';
                 scannerStatus.style.display = 'block';
 
