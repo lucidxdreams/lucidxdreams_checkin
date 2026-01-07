@@ -21,7 +21,7 @@
  */
 
 // Backend API URL - REQUIRED for barcode scanning and form submission
-window.ENV_API_BASE_URL = 'https://lucidxdreamscheckin-production.up.railway.app';
+window.ENV_API_BASE_URL = 'https://lucidxdreamscheckin-production.up.railway.app/';
 
 // Supabase Configuration - enables admin dashboard
 window.ENV_SUPABASE_URL = 'https://dzhmckhifjqklaeelsww.supabase.co';
