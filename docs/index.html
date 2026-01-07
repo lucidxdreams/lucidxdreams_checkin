@@ -1947,14 +1947,14 @@
                 if (zxingReader) return zxingReader;
 
                 try {
-                    // Ensure ZXingWasmReader is loaded
-                    if (typeof ZXingWasmReader === 'undefined') {
-                        throw new Error('ZXingWasm library not loaded');
+                    // Check for ZXingWASM global (from CDN IIFE)
+                    if (typeof ZXingWASM === 'undefined') {
+                        throw new Error('ZXingWASM library not loaded. Check internet connection.');
                     }
 
                     // Configure for PDF417 using CDN for the WASM file
-                    // This eliminates relative path issues on different hostings
-                    const reader = await ZXingWasmReader.ZXingReaderModule({
+                    // The IIFE typically exposes ZXingWASM.ZXingReaderModule
+                    const readerModule = await ZXingWASM.ZXingReaderModule({
                         locateFile: (path, prefix) => {
                             if (path.endsWith('.wasm')) {
                                 return `https://unpkg.com/zxing-wasm@1.2.9/dist/reader/${path}`;
@@ -1962,8 +1962,9 @@
                             return prefix + path;
                         }
                     });
-                    zxingReader = reader;
-                    return reader;
+
+                    zxingReader = readerModule;
+                    return readerModule;
                 } catch (err) {
                     console.error('Failed to init ZXing:', err);
                     throw err; // Propagate error to show UI message
