@@ -137,6 +137,19 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     import numpy as np
     
     # Limit variants to the most effective ones for speed
+    variants = []
+    
+    # Convert PIL directly to numpy
+    img_cv = np.array(image)
+    if len(img_cv.shape) == 3:
+        # Check RGB vs BGR (PIL is RGB, OpenCV assumes BGR for some ops, but for gray it matters)
+        # Using cv2.COLOR_RGB2GRAY since PIL is RGB
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img_cv
+        
+    height, width = gray.shape
+
     # 1. Grayscale (Native)
     variants.append((Image.fromarray(gray), "cv_gray"))
     
