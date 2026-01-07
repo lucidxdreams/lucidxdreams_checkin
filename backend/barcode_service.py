@@ -247,6 +247,50 @@ def decode_barcode_zxing(image: Image.Image) -> Optional[str]:
         return None
 
 
+def decode_barcode_pdf417decoder(image: Image.Image) -> Optional[str]:
+    """
+    Decode PDF417 barcode using pdf417decoder (specialized for driver's licenses)
+    """
+    if not PDF417_AVAILABLE:
+        return None
+        
+    try:
+        import time
+        start_time = time.time()
+        
+        # pdf417decoder works with PIL images directly
+        decoder = PDF417Decoder(image)
+        
+        if decoder.decode() > 0:
+            barcode_text = decoder.barcode_data_index_to_string(0)
+            if barcode_text and len(barcode_text) > 50:
+                elapsed = time.time() - start_time
+                logger.info(f"✅ pdf417decoder decoded barcode in {elapsed:.3f}s ({len(barcode_text)} chars)")
+                return barcode_text
+        
+        # Try with preprocessed variants
+        variants = preprocess_for_barcode(image)
+        for img, variant_name in variants:
+            try:
+                decoder = PDF417Decoder(img)
+                if decoder.decode() > 0:
+                    barcode_text = decoder.barcode_data_index_to_string(0)
+                    if barcode_text and len(barcode_text) > 50:
+                        elapsed = time.time() - start_time
+                        logger.info(f"✅ pdf417decoder decoded via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
+                        return barcode_text
+            except Exception:
+                continue
+        
+        elapsed = time.time() - start_time
+        logger.warning(f"pdf417decoder found no barcodes in {elapsed:.3f}s")
+        return None
+        
+    except Exception as e:
+        logger.error(f"pdf417decoder decoding error: {e}")
+        return None
+
+
 def decode_barcode_pyzbar(image: Image.Image) -> Optional[str]:
     """
     Decode PDF417 barcode using pyzbar (fallback)
