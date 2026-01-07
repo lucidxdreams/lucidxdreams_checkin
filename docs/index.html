@@ -1430,9 +1430,12 @@
                     <div id="manualUploadSection" class="manual-upload-section">
                         <label class="manual-upload-btn" for="backIdInput">
                             <span>📤</span>
-                            <span>Can't scan? Upload photo of back instead</span>
+                            <span>Upload photo of back of ID</span>
                         </label>
-                        <input type="file" id="backIdInput" accept="image/*" style="display:none;" onchange="handleBackIdUpload(this)">
+                        <input type="file" id="backIdInput" accept="image/*" capture="environment" style="display:none;" onchange="handleBackIdUpload(this)">
+                        <p style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px;">
+                            Tip: Hold ID flat, ensure barcode is fully visible and in focus
+                        </p>
                     </div>
                     
                     <!-- Processing indicator -->
@@ -1630,6 +1633,7 @@
         let customerRecord = null;
         let hasExistingCard = null; // true = YES, false = NO
         let residentType = null; // 'dc' or 'nondc'
+        let backIdScanned = false; // Track if back ID was successfully scanned and parsed
 
         // ============================================
         // ANIMATED CIRCULAR PROGRESS BAR
@@ -1687,6 +1691,7 @@
             // Reset state
             frontImageFile = null;
             scannedData = {};
+            backIdScanned = false;
         }
 
         // Start check-in from welcome page
@@ -1773,7 +1778,8 @@
         }
 
         // ============================================
-        // LIVE BARCODE SCANNER - Native BarcodeDetector + Fallback
+        // LIVE BARCODE SCANNER - Cross-browser compatible
+        // Safari iOS does NOT support BarcodeDetector API
         // ============================================
         let html5QrCode = null;
         let scannerTimeout = null;
@@ -1781,10 +1787,19 @@
         let nativeScanner = null;
         let videoStream = null;
         let scanInterval = null;
-        const SCANNER_TIMEOUT_MS = 10000; // 10 seconds before showing manual upload option
+        const SCANNER_TIMEOUT_MS = 8000; // 8 seconds before showing manual upload option
         
-        // Check for native BarcodeDetector support (much better for PDF417)
-        const hasNativeBarcodeDetector = 'BarcodeDetector' in window;
+        // Detect iOS Safari (no BarcodeDetector support)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isIOSSafari = isIOS || isSafari;
+        
+        // Check for native BarcodeDetector support (Chrome Android only, NOT Safari iOS)
+        // Even if BarcodeDetector exists, Safari's implementation may be incomplete
+        const hasNativeBarcodeDetector = 'BarcodeDetector' in window && !isIOSSafari;
+        
+        console.log('Browser detection:', { isIOS, isSafari, isIOSSafari, hasNativeBarcodeDetector });
 
         // Handle Front ID Upload (direct file input - uses native mobile options)
         function handleFrontIdUpload(input) {
@@ -1829,14 +1844,20 @@
             const manualUpload = document.getElementById('manualUploadSection');
             
             scannerStartTime = Date.now();
-            console.log('Starting scanner... Native BarcodeDetector:', hasNativeBarcodeDetector);
+            console.log('Starting scanner... Native BarcodeDetector:', hasNativeBarcodeDetector, 'iOS/Safari:', isIOSSafari);
+
+            // Show manual upload immediately on Safari iOS (less reliable live scanning)
+            if (isIOSSafari) {
+                manualUpload.classList.add('visible');
+                console.log('Safari/iOS detected - showing manual upload option immediately');
+            }
 
             try {
-                // Try native BarcodeDetector first (MUCH better for PDF417)
+                // Try native BarcodeDetector first (Chrome Android only)
                 if (hasNativeBarcodeDetector) {
                     await startNativeScanner();
                 } else {
-                    // Fallback to html5-qrcode
+                    // Fallback to html5-qrcode (Safari, Firefox, etc.)
                     await startHtml5Scanner();
                 }
 
@@ -1845,11 +1866,15 @@
                 scannerFrame.style.display = 'block';
                 scannerStatus.style.display = 'block';
 
-                // Set timeout to show manual upload option
+                // Set timeout to show manual upload option (shorter for iOS)
+                const timeoutMs = isIOSSafari ? 5000 : SCANNER_TIMEOUT_MS;
                 scannerTimeout = setTimeout(() => {
                     manualUpload.classList.add('visible');
-                    document.getElementById('scannerStatusText').textContent = 'Having trouble? Try uploading a photo';
-                }, SCANNER_TIMEOUT_MS);
+                    const statusText = document.querySelector('.scanner-status-text span:last-child');
+                    if (statusText) {
+                        statusText.textContent = 'Having trouble? Upload a photo instead';
+                    }
+                }, timeoutMs);
 
             } catch (err) {
                 console.error('Failed to start scanner:', err);
@@ -1861,28 +1886,43 @@
             }
         }
 
-        // Native BarcodeDetector scanner - instant PDF417 detection
+        // Native BarcodeDetector scanner - instant PDF417 detection (Chrome Android)
         async function startNativeScanner() {
             const readerDiv = document.getElementById('reader');
             
-            // Create video element
+            // Create video element with mobile-optimized attributes
             const video = document.createElement('video');
-            video.setAttribute('playsinline', '');
+            video.setAttribute('playsinline', ''); // Required for iOS
             video.setAttribute('autoplay', '');
+            video.setAttribute('muted', ''); // Required for autoplay
             video.style.cssText = 'width:100%;height:280px;object-fit:cover;';
             readerDiv.innerHTML = '';
             readerDiv.appendChild(video);
             readerDiv.style.display = 'block';
             
-            // Get camera stream with optimal settings
-            videoStream = await navigator.mediaDevices.getUserMedia({
+            // Get camera stream with optimal settings for barcode scanning
+            const constraints = {
                 video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
-                    focusMode: 'continuous'
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    frameRate: { ideal: 30, min: 15 },
+                    // Advanced constraints for better focus
+                    focusMode: { ideal: 'continuous' },
+                    exposureMode: { ideal: 'continuous' },
+                    whiteBalanceMode: { ideal: 'continuous' }
                 }
-            });
+            };
+            
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (err) {
+                // Fallback to simpler constraints if advanced ones fail
+                console.log('Falling back to simple camera constraints');
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+            }
             
             video.srcObject = videoStream;
             await video.play();
@@ -1892,7 +1932,7 @@
             
             console.log('Native BarcodeDetector started - scanning for PDF417...');
             
-            // Scan every 100ms (10 FPS) for instant detection
+            // Scan every 150ms for good balance of speed and CPU usage
             scanInterval = setInterval(async () => {
                 try {
                     const barcodes = await nativeScanner.detect(video);
@@ -1904,24 +1944,36 @@
                 } catch (err) {
                     // Ignore detection errors, keep scanning
                 }
-            }, 100);
+            }, 150);
         }
 
-        // Fallback html5-qrcode scanner
+        // Fallback html5-qrcode scanner - optimized for PDF417 on all browsers
         async function startHtml5Scanner() {
             const readerDiv = document.getElementById('reader');
             readerDiv.style.display = 'block';
             
             html5QrCode = new Html5Qrcode('reader');
             
+            // Get viewport dimensions for optimal scanning area
+            const viewportWidth = Math.min(window.innerWidth, 480);
+            const scanWidth = Math.floor(viewportWidth * 0.95); // 95% of viewport for edge detection
+            const scanHeight = Math.floor(scanWidth * 0.6); // PDF417 aspect ratio
+            
             const config = {
-                fps: 30,
-                qrbox: { width: 280, height: 180 },
+                fps: 15, // Lower FPS for better processing on mobile
+                qrbox: { width: scanWidth, height: scanHeight }, // Larger scan area for edge detection
                 formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
-                aspectRatio: 1.5,
+                aspectRatio: 1.7778, // 16:9 for better mobile camera utilization
                 disableFlip: false,
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+                // Don't use native BarcodeDetector on Safari - it's incomplete
+                experimentalFeatures: { 
+                    useBarCodeDetectorIfSupported: !isIOSSafari 
+                },
+                // Verbose logging for debugging
+                verbose: false
             };
+
+            console.log('Starting html5-qrcode with config:', { scanWidth, scanHeight, isIOSSafari });
 
             await html5QrCode.start(
                 { facingMode: 'environment' },
@@ -1930,7 +1982,7 @@
                 onBarcodeScanError
             );
             
-            console.log('html5-qrcode scanner started as fallback');
+            console.log('html5-qrcode scanner started successfully');
         }
 
         // Stop live scanner
@@ -1993,8 +2045,9 @@
 
                     const result = await response.json();
 
-                    if (result.success) {
+                    if (result.success && result.data && result.data.firstName) {
                         scannedData = result.data;
+                        backIdScanned = true; // Mark as successfully scanned
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'status-msg success';
                         statusDiv.textContent = '✓ ID scanned successfully!';
@@ -2002,16 +2055,18 @@
                         scannerSuccess.querySelector('span:last-child').textContent = 'Complete!';
                         
                         populateForm(scannedData);
+                        console.log('Back ID scan complete. backIdScanned:', backIdScanned);
                     } else {
-                        throw new Error(result.error);
+                        throw new Error(result.error || 'Could not extract name from barcode');
                     }
                 } catch (error) {
+                    backIdScanned = false; // Ensure flag is false on error
                     scannerSuccess.style.display = 'none';
                     statusDiv.style.display = 'block';
                     statusDiv.className = 'status-msg error';
-                    statusDiv.textContent = '✗ Failed to parse barcode. Please try manual upload.';
+                    statusDiv.innerHTML = '✗ Failed to parse barcode.<br><button onclick="retryScanner()" style="margin-top:10px; padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">Try Again</button>';
                     manualUpload.classList.add('visible');
-                    console.error(error);
+                    console.error('Barcode parse error:', error);
                 }
             }, 800);
         }
@@ -2025,6 +2080,54 @@
                 console.log('Scanning... (no barcode detected yet)');
                 lastErrorTime = now;
             }
+        }
+        
+        // Retry scanner function - resets and restarts the scanner
+        function retryScanner() {
+            console.log('Retrying scanner...');
+            
+            // Reset scanner UI
+            const scannerContainer = document.getElementById('scannerContainer');
+            const scannerSuccess = document.getElementById('scannerSuccess');
+            const scannerPlaceholder = document.getElementById('scannerPlaceholder');
+            const statusDiv = document.getElementById('scanStatus');
+            const manualUpload = document.getElementById('manualUploadSection');
+            
+            // Reset scanner container to original state
+            scannerContainer.innerHTML = `
+                <div class="scanner-viewport">
+                    <div id="scannerPlaceholder" class="scanner-placeholder">
+                        <span class="icon">📷</span>
+                        <span class="text">Initializing camera...</span>
+                    </div>
+                    <div id="reader"></div>
+                    <div class="scanner-frame" id="scannerFrame" style="display:none;">
+                        <div class="scanner-corner top-left"></div>
+                        <div class="scanner-corner top-right"></div>
+                        <div class="scanner-corner bottom-left"></div>
+                        <div class="scanner-corner bottom-right"></div>
+                        <div class="scan-line"></div>
+                        <div class="scanner-grid" id="scannerGrid"></div>
+                    </div>
+                    <div class="scanner-status" id="scannerStatus" style="display:none;">
+                        <div class="scanner-status-text">
+                            <span class="dot"></span>
+                            <span>Scanning for barcode...</span>
+                        </div>
+                    </div>
+                    <div id="scannerSuccess" class="scanner-success" style="display:none;">
+                        <div class="checkmark">✓</div>
+                        <span style="font-size:18px; font-weight:600; color:var(--success);">Barcode Scanned!</span>
+                    </div>
+                </div>
+            `;
+            
+            statusDiv.style.display = 'none';
+            manualUpload.classList.remove('visible');
+            
+            // Reinitialize scanner grid and start scanner
+            initScannerGrid();
+            startLiveScanner();
         }
 
         // Handle Back ID Manual Upload
@@ -2073,8 +2176,9 @@
                 const result = await response.json();
                 backLoading.style.display = 'none';
 
-                if (result.success) {
+                if (result.success && result.data && result.data.firstName) {
                     scannedData = result.data;
+                    backIdScanned = true; // Mark as successfully scanned
                     
                     // Show success in scanner container
                     scannerContainer.style.display = 'block';
@@ -2089,18 +2193,20 @@
                     statusDiv.className = 'status-msg success';
                     statusDiv.textContent = '✓ ID scanned successfully!';
                     populateForm(scannedData);
+                    console.log('Back ID scan complete (manual). backIdScanned:', backIdScanned);
                 } else {
-                    throw new Error(result.error);
+                    throw new Error(result.error || 'Could not extract name from barcode');
                 }
             } catch (error) {
+                backIdScanned = false; // Ensure flag is false on error
                 backLoading.style.display = 'none';
                 scannerContainer.style.display = 'block';
                 manualUpload.classList.add('visible');
 
                 statusDiv.style.display = 'block';
                 statusDiv.className = 'status-msg error';
-                statusDiv.innerHTML = '✗ Scan failed. Please try again with a clearer photo.';
-                console.error(error);
+                statusDiv.innerHTML = '✗ Scan failed. Please try again with a clearer photo.<br><button onclick="retryScanner()" style="margin-top:10px; padding:8px 16px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer;">Try Again</button>';
+                console.error('Manual upload scan error:', error);
             }
         }
 
@@ -2183,7 +2289,7 @@
             const email = document.getElementById('email').value;
 
             if (!frontImageFile) return alert('Please upload Front of ID.');
-            if (!scannedData.firstName) return alert('Please scan Back of ID.');
+            if (!backIdScanned) return alert('Please scan Back of ID.');
             if (hasExistingCard === null) return alert('Please indicate if you have a Medical Cannabis Card.');
             if (!phone || !email) return alert('Please enter contact info.');
             

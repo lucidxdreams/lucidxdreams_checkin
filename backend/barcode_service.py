@@ -131,6 +131,7 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     """
     Create multiple preprocessed versions of image for better barcode detection using OpenCV.
     PDF417 barcodes need good contrast and proper orientation.
+    Optimized for mobile photos where barcode may be near edge of frame.
     """
     import cv2
     import numpy as np
@@ -146,13 +147,20 @@ def preprocess_for_barcode(image: Image.Image) -> list:
         pil_img = cv2.cvtColor(pil_img, cv2.COLOR_RGB2BGR)
         
     gray = cv2.cvtColor(pil_img, cv2.COLOR_BGR2GRAY)
+    height, width = gray.shape
     
     # Add raw grayscale variant (as Image object for zxing wrapper)
     variants.append((Image.fromarray(gray), "cv_gray"))
     
+    # 0. Add padding around image edges (helps detect barcodes near frame edges)
+    # This is crucial for mobile photos where barcode is at the edge
+    padding = 50
+    padded = cv2.copyMakeBorder(gray, padding, padding, padding, padding, 
+                                 cv2.BORDER_CONSTANT, value=255)
+    variants.append((Image.fromarray(padded), "cv_padded"))
+    
     # 1. Resize/Upscale Logic (Upscaling often helps small barcodes)
     # Check if image is too small for PDF417 details
-    height, width = gray.shape
     if width < 1500:
         logger.info(f"Upscaling image from {width}x{height} to better detect PDF417")
         # Upscale 2x using Cubic interpolation
@@ -168,6 +176,11 @@ def preprocess_for_barcode(image: Image.Image) -> list:
         up_thresh = cv2.adaptiveThreshold(upscaled, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                           cv2.THRESH_BINARY, 21, 10)
         variants.append((Image.fromarray(up_thresh), "cv_upscaled_adaptive"))
+        
+        # Padded + Upscaled for edge barcodes
+        upscaled_padded = cv2.resize(padded, (padded.shape[1]*2, padded.shape[0]*2), 
+                                      interpolation=cv2.INTER_CUBIC)
+        variants.append((Image.fromarray(upscaled_padded), "cv_upscaled_padded"))
 
     # 2. Gaussian Blur + Adaptive Threshold (The "Scanner App" look)
     # This is usually the best for documents with uneven lighting
@@ -181,6 +194,10 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     cl1 = clahe.apply(gray)
     variants.append((Image.fromarray(cl1), "cv_clahe"))
     
+    # 3b. CLAHE on padded image for edge barcodes
+    cl1_padded = clahe.apply(padded)
+    variants.append((Image.fromarray(cl1_padded), "cv_clahe_padded"))
+    
     # 4. Standard Sharpening
     sharpen_kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
     sharpened = cv2.filter2D(gray, -1, sharpen_kernel)
@@ -190,6 +207,14 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     kernel = np.ones((2,2), np.uint8) 
     dilated = cv2.erode(thresh, kernel, iterations=1) # Erode in CV is Dilation for black ink
     variants.append((Image.fromarray(dilated), "cv_dilated"))
+    
+    # 6. Try different rotations (barcode might be slightly tilted)
+    for angle in [2, -2, 5, -5]:
+        center = (width // 2, height // 2)
+        matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated = cv2.warpAffine(gray, matrix, (width, height), 
+                                  borderMode=cv2.BORDER_CONSTANT, borderValue=255)
+        variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
 
     return variants
 
