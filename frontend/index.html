@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Check-in | Lucid x Dreams</title>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* Logo Colors - Green and Orange/Gold */
+            --primary: #2d8f4e;
+            --primary-dark: #1e6b3a;
+            --primary-light: #4eba6f;
+            --primary-glow: rgba(45, 143, 78, 0.35);
+            --secondary: #d4a039;
+            --secondary-light: #e8b84a;
+            --secondary-dark: #b8872d;
+            --accent: #d4a039;
+            --background: linear-gradient(135deg, #2d3748 0%, #1a202c 50%, #2d3748 100%);
+            --background-solid: #2d3748;
+            --surface: rgba(255, 255, 255, 0.08);
+            --surface-solid: rgba(30, 35, 50, 0.95);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-muted: rgba(255, 255, 255, 0.5);
+            --success: #4eba6f;
+            --error: #ef4444;
+            --border: rgba(255, 255, 255, 0.12);
+            --border-light: rgba(255, 255, 255, 0.06);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            background-color: var(--background-solid);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px 20px 60px;
+            gap: 32px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Logo */
+        .logo-container {
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .logo-img {
+            max-width: 240px;
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        .logo-img:hover {
+            transform: scale(1.02);
+        }
+
+        /* Progress Indicator - Replaces Step Numbers */
+        .progress-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        /* Animated Circular Progress Bar */
+        .circular-progress {
+            position: relative;
+            width: 64px;
+            height: 64px;
+        }
+
+        .circular-progress svg {
+            transform: rotate(-90deg);
+            width: 64px;
+            height: 64px;
+        }
+
+        .circular-progress .bg {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 4;
+        }
+
+        .circular-progress .progress {
+            fill: none;
+            stroke: url(#progressGradient);
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 175.93;
+            stroke-dashoffset: 175.93;
+            transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .circular-progress .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .progress-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-wrapper {
+            position: relative;
+            z-index: 10;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        /* Main Container with Glassmorphism */
+        .container {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            width: 100%;
+            padding: 36px 28px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Border Beam Effect - Animated gradient border */
+        .border-beam-wrapper {
+            position: absolute;
+            inset: -2px;
+            border-radius: calc(var(--radius-xl) + 2px);
+            padding: 2px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                var(--primary), 
+                var(--secondary), 
+                transparent
+            );
+            background-size: 300% 100%;
+            animation: borderBeamMove 3s linear infinite;
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes borderBeamMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+
+        .border-beam-wrapper {
+            animation: borderBeamMove 8s linear infinite;
+        }
+
+        /* Business Info */
+        .business-info {
+            text-align: center;
+            margin-bottom: 28px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .business-info h2 {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .business-info .subtitle {
+            color: var(--secondary);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .business-info .address {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .business-info .address-icon {
+            font-size: 16px;
+        }
+
+        /* Step Indicators - Hidden, replaced by progress bar */
+        .steps {
+            display: none;
+        }
+
+        .step, .step-line {
+            display: none;
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes fadeSlideIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(12px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.01em;
+        }
+
+        .section-title .icon {
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        input:hover,
+        select:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px var(--primary-glow);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Primary Button */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 24px;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.01em;
+            box-shadow: 0 4px 15px rgba(45, 143, 78, 0.4);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: var(--border);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 12px;
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .btn-large {
+            padding: 18px 24px;
+            font-size: 16px;
+        }
+
+        /* ID Upload Row - Side by Side */
+        .id-upload-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .id-upload-col {
+            flex: 1;
+            min-width: 0;
+            transition: all 0.3s ease;
+        }
+
+        .id-upload-col.expanded {
+            flex: 1 1 100%;
+        }
+
+        .id-upload-col.collapsed {
+            flex: 0 0 0;
+            overflow: hidden;
+            opacity: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        .id-upload-col .form-group {
+            margin-bottom: 0;
+        }
+
+        /* Upload Areas */
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-md);
+            padding: 20px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.04);
+            min-height: 100px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(45, 143, 78, 0.1);
+        }
+
+        .upload-area.expanded {
+            padding: 28px 20px;
+        }
+
+        .upload-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 160px;
+            border-radius: var(--radius-sm);
+            margin-top: 12px;
+            display: none;
+            object-fit: cover;
+        }
+
+        /* Medical Card Toggle */
+        .card-toggle-section {
+            margin: 28px 0;
+        }
+
+        .card-toggle-label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .card-toggle-options {
+            display: flex;
+            gap: 12px;
+        }
+
+        .card-checkbox-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-checkbox-wrapper:hover {
+            border-color: var(--primary);
+            background: rgba(45, 143, 78, 0.1);
+        }
+
+        .card-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+        }
+
+        .card-checkbox-wrapper.selected {
+            border-color: var(--primary);
+            background: rgba(45, 143, 78, 0.15);
+        }
+
+        .card-checkbox-wrapper.selected .card-checkbox {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .card-checkbox-wrapper.selected .card-checkbox::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .card-checkbox-label {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        /* Resident Type Selection */
+        .resident-type-section {
+            margin: 24px 0;
+            padding: 20px;
+            background: rgba(212, 160, 57, 0.08);
+            border: 1px solid rgba(212, 160, 57, 0.2);
+            border-radius: var(--radius-md);
+        }
+
+        .resident-type-title {
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .resident-options {
+            display: flex;
+            gap: 12px;
+        }
+
+        .resident-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .resident-option:hover {
+            border-color: var(--primary);
+            background: rgba(45, 143, 78, 0.1);
+        }
+
+        .resident-option.selected {
+            border-color: var(--primary);
+            background: var(--primary);
+        }
+
+        .resident-option .icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .resident-option.selected .icon {
+            filter: brightness(0) invert(1);
+        }
+
+        .resident-option-text {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            text-align: left;
+        }
+
+        .resident-option.selected .resident-option-text {
+            color: white;
+        }
+
+        /* Action Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .action-sheet {
+            background: rgba(30, 35, 50, 0.98);
+            backdrop-filter: blur(20px);
+            width: 100%;
+            max-width: 480px;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            padding: 24px;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            font-size: 15px;
+            font-family: inherit;
+            color: #ffffff;
+            cursor: pointer;
+            text-align: left;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+        }
+
+        .action-btn span {
+            margin-right: 12px;
+            font-size: 20px;
+        }
+
+        .close-btn {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ff6b6b;
+            justify-content: center;
+            border-color: rgba(239, 68, 68, 0.3);
+            margin-top: 8px;
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ff6b6b;
+        }
+
+        /* Checkbox Group */
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        .checkbox-group a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .checkbox-group a:hover {
+            text-decoration: underline;
+        }
+
+        /* Status Messages */
+        .status-msg {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-msg.error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-msg.success {
+            background: rgba(45, 143, 78, 0.15);
+            color: var(--primary-light);
+            border: 1px solid rgba(45, 143, 78, 0.3);
+        }
+
+        /* Success Icon */
+        .success-icon {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 32px;
+            color: white;
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        /* Footer - Dark Theme */
+        .footer-wrapper {
+            max-width: 480px;
+            width: 100%;
+            position: relative;
+            z-index: 10;
+            margin-top: 24px;
+        }
+
+        footer {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: var(--radius-lg);
+            padding: 20px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .footer-disclaimer {
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.45);
+            line-height: 1.6;
+            margin-bottom: 14px;
+            text-align: justify;
+        }
+
+        .footer-disclaimer strong {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .footer-contact {
+            text-align: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            white-space: nowrap;
+        }
+
+        .footer-contact a {
+            color: var(--secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            font-size: 12px;
+        }
+
+        .footer-contact a:hover {
+            color: var(--secondary-light);
+        }
+
+        .footer-contact span {
+            color: rgba(255, 255, 255, 0.3);
+            margin: 0 8px;
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 12px;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.35);
+            text-align: center;
+        }
+
+        .footer-bottom .copyright {
+            white-space: nowrap;
+        }
+
+        .footer-bottom .links {
+            white-space: nowrap;
+        }
+
+        .footer-bottom .links a {
+            color: rgba(255, 255, 255, 0.4);
+            text-decoration: none;
+            margin-left: 8px;
+            font-size: 9px;
+            transition: color 0.2s ease;
+        }
+
+        .footer-bottom .links a:hover {
+            color: var(--secondary);
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 24px 16px 48px;
+                gap: 24px;
+            }
+
+            .container {
+                padding: 28px 20px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+
+            .footer-bottom .links a {
+                margin: 0 8px;
+            }
+
+            .resident-options {
+                flex-direction: column;
+            }
+
+            .card-toggle-options {
+                flex-direction: column;
+            }
+
+            .steps {
+                transform: scale(0.9);
+            }
+        }
+
+        /* Loading Indicator */
+        .loading-indicator {
+            padding: 24px;
+            text-align: center;
+            color: var(--primary);
+        }
+
+        .loading-indicator p {
+            margin-top: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            margin: 0 auto;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Logo -->
+    <div class="logo-container">
+        <img src="logo/logo.webp" alt="Lucid x Dreams" class="logo-img">
+    </div>
+
+    <!-- Form Wrapper -->
+    <div class="form-wrapper">
+        <div class="container">
+            <div class="border-beam-wrapper"></div>
+        
+        <!-- STEP 0: Welcome Page -->
+        <div id="step0" class="step-content active">
+            <div class="business-info">
+                <h2>Lucid x Dreams</h2>
+                <p class="subtitle">Medical Cannabis Dispensary</p>
+                <p class="address">
+                    <span class="address-icon">📍</span>
+                    1334 North Capitol St NW<br>
+                    Washington, DC 20002
+                </p>
+            </div>
+
+            <button class="btn btn-large" id="checkinStartBtn" type="button">
+                ✓ Check-in
+            </button>
+        </div>
+
+        <!-- Progress Bar (replaces step indicators) -->
+        <div id="stepsContainer" style="display: none;">
+            <div class="progress-container" id="progressContainerInner" style="display: flex;">
+                <div class="circular-progress">
+                    <svg viewBox="0 0 64 64">
+                        <defs>
+                            <linearGradient id="progressGradientInner" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color: var(--primary);" />
+                                <stop offset="100%" style="stop-color: var(--secondary);" />
+                            </linearGradient>
+                        </defs>
+                        <circle class="bg" cx="32" cy="32" r="28"></circle>
+                        <circle class="progress" id="progressCircleInner" cx="32" cy="32" r="28"></circle>
+                    </svg>
+                    <span class="progress-text" id="progressTextInner">33%</span>
+                </div>
+                <span class="progress-label" id="progressLabelInner">ID Verification</span>
+            </div>
+        </div>
+
+        <!-- STEP 1: ID Capture + Card Question -->
+        <div id="step1" class="step-content">
+            <h3 class="section-title"><span class="icon">🪪</span> ID Verification</h3>
+
+            <!-- ID Upload Row - Side by Side -->
+            <div class="id-upload-row" id="idUploadRow">
+                <!-- Front ID -->
+                <div class="id-upload-col" id="frontIdCol">
+                    <div class="form-group">
+                        <label>Front of ID</label>
+                        <div class="upload-area" id="frontUploadArea" onclick="openActionSheet('front')">
+                            <div id="frontPlaceholder">
+                                <span class="upload-icon">📷</span>
+                                <span class="upload-text">Photo</span>
+                            </div>
+                            <img id="frontPreview" class="preview-img">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Back ID -->
+                <div class="id-upload-col" id="backIdCol">
+                    <div class="form-group">
+                        <label>Back of ID</label>
+                        <div class="upload-area" id="backUploadArea" onclick="openActionSheet('back')">
+                            <div id="backPlaceholder">
+                                <span class="upload-icon">║▌║</span>
+                                <span class="upload-text">Barcode</span>
+                            </div>
+                            <div id="backLoading" class="loading-indicator" style="display:none;">
+                                <div class="loading-spinner"></div>
+                                <p>Processing...</p>
+                            </div>
+                            <img id="backPreview" class="preview-img">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="scanStatus" class="status-msg"></div>
+
+            <!-- Medical Card Yes/No Toggle -->
+            <div class="card-toggle-section">
+                <label class="card-toggle-label">🏥 Do you have a Medical Cannabis Card?</label>
+                <div class="card-toggle-options">
+                    <div class="card-checkbox-wrapper" id="cardYes" onclick="handleCardToggle('yes')">
+                        <div class="card-checkbox"></div>
+                        <span class="card-checkbox-label">Yes</span>
+                    </div>
+                    <div class="card-checkbox-wrapper" id="cardNo" onclick="handleCardToggle('no')">
+                        <div class="card-checkbox"></div>
+                        <span class="card-checkbox-label">No</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resident Type Selection (shown when NO is selected) -->
+            <div id="residentTypeSection" class="resident-type-section" style="display:none;">
+                <h3 class="resident-type-title">📍 Apply for the Medical Cannabis Program as a:</h3>
+                <div class="resident-options">
+                    <div class="resident-option" id="dcResident" onclick="selectResidentType('dc')">
+                        <span class="icon">🏛️</span>
+                        <div class="resident-option-text">DC Resident</div>
+                    </div>
+                    <div class="resident-option" id="nonDcResident" onclick="selectResidentType('nondc')">
+                        <span class="icon">🌎</span>
+                        <div class="resident-option-text">Non DC Resident</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="phone" placeholder="(202) 555-0123">
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="email" placeholder="you@example.com">
+            </div>
+
+            <button class="btn" onclick="goToStep2()" id="step1Next">Next: Verify Info</button>
+        </div>
+
+        <!-- STEP 2: Verify & Consent (Only shown if NO card) -->
+        <div id="step2" class="step-content">
+            <h3 class="section-title"><span class="icon">📋</span> Verify Information</h3>
+
+            <div id="extractedDataForm">
+                <div class="form-group"><label>First Name</label><input type="text" id="firstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="lastName"></div>
+                <div class="form-group"><label>Date of Birth</label><input type="date" id="dob"></div>
+                <div class="form-group"><label>Street Address</label><input type="text" id="street"></div>
+                <div class="form-group"><label>City</label><input type="text" id="city"></div>
+                <div class="form-group"><label>State</label><input type="text" id="state"></div>
+                <div class="form-group"><label>ZIP Code</label><input type="text" id="zip"></div>
+            </div>
+
+            <!-- Time Period Selection (only for Non-DC residents) -->
+            <div id="timePeriodSection" style="display:none;">
+                <div class="form-group">
+                    <label>⏱️ Time Period</label>
+                    <select id="timePeriod">
+                        <option value="3days">3 days ($10)</option>
+                        <option value="30days">30 days ($20)</option>
+                        <option value="90days">90 days ($50)</option>
+                        <option value="180days">180 days ($75)</option>
+                        <option value="365days">365 days ($100)</option>
+                    </select>
+                </div>
+                <div style="background:rgba(212, 160, 57, 0.1); border:1px solid rgba(212, 160, 57, 0.25); border-radius:10px; padding:15px; margin:15px 0; font-size:13px; color: rgba(255,255,255,0.7);">
+                    <p style="margin-bottom:10px;">• Lucid x Dreams provides a time-saving form completion service only, the above fees are charged by ABCA.</p>
+                    <p style="margin-bottom:10px;">• Upon submission, you will be sent an email with a payment link. The registration period begins with the payment date.</p>
+                    <p style="margin-bottom:0;">• Once payment is completed, you will receive an email that will serve as your Non Resident Medical Cannabis Patient Registration.</p>
+                </div>
+            </div>
+
+            <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consentEmail" required>
+                    <label for="consentEmail">I consent to receive email notifications. <span style="color:red;">*</span></label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consentAuth" required>
+                    <label for="consentAuth">I authorize submission of my cannabis application to DC ABCA on my behalf. <span style="color:red;">*</span></label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="consentLegal" required>
+                    <label for="consentLegal">I certify that I'm 21+, and I agree to <a href="terms.html" target="_blank">Terms & Conditions</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>. <span style="color:red;">*</span></label>
+                </div>
+            </div>
+
+            <div id="submissionStatus" class="status-msg"></div>
+            <button class="btn" onclick="submitApplication()" id="submitBtn">Submit Application</button>
+            <button class="btn btn-secondary" onclick="showStep(1)">← Back</button>
+        </div>
+
+        <!-- STEP 3: Registration & Check-in -->
+        <div id="step3" class="step-content">
+            <div style="text-align:center; margin-bottom:25px;">
+                <div class="success-icon">✓</div>
+                <h3 style="color:#ffffff; margin-bottom:10px; font-size:20px; font-weight: 700;" id="step3Title">Complete Your Check-in</h3>
+                <p style="font-size:14px; color:rgba(255,255,255,0.7); line-height:1.5;" id="step3Subtitle">Enter your medical cannabis registration details below.</p>
+            </div>
+
+            <div id="checkinForm">
+                <div class="form-group">
+                    <label>Registration ID</label>
+                    <input type="text" id="regId" placeholder="Enter your registration ID">
+                </div>
+                <div class="form-group">
+                    <label>Expiration Date</label>
+                    <input type="date" id="expDate">
+                </div>
+
+                <button class="btn" onclick="finishCheckin()" id="checkinBtn">✓ Check-in</button>
+                <button class="btn btn-secondary" onclick="goBackFromStep3()" id="step3BackBtn" style="display:none;">← Back</button>
+            </div>
+            
+            <div id="checkinSuccess" style="display:none; text-align:center; padding:20px;">
+                <div class="success-icon">✓</div>
+                <h3 style="color:var(--primary-light); margin:20px 0; font-weight: 700;">Check-in Complete!</h3>
+                <p style="color:rgba(255,255,255,0.7); line-height:1.6;">Thank you for checking in. Your registration has been recorded.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer - Separated -->
+    <div class="footer-wrapper">
+        <footer>
+            <div class="footer-disclaimer">
+                <strong>Disclaimer:</strong> Lucid x Dreams provides a time-saving form completion service that helps DC residents apply for medical cannabis cards through the DC Alcohol Beverage and Cannabis Administration (ABCA). We are NOT affiliated with, endorsed by, or connected to ABCA, Quickbase, or any other agency. We simply help you fill out and submit your application faster.
+            </div>
+            
+            <div class="footer-contact">
+                <a href="mailto:help@lucidxdreams.com">help@lucidxdreams.com</a>
+                <span>|</span>
+                <a href="tel:+12026007610">(202) 600-7610</a>
+            </div>
+
+            <div class="footer-bottom">
+                <div class="copyright">© 2026 Lucid x Dreams. All rights reserved.</div>
+                <div class="links">
+                    <a href="terms.html">Terms of Service</a>
+                    <a href="privacy.html">Privacy Policy</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Action Modal -->
+    <div class="modal-overlay" id="actionSheet" onclick="closeActionSheet(event)">
+        <div class="action-sheet">
+            <h3 style="text-align:center; margin-bottom:20px; color:#ffffff; font-weight: 700;">Choose Option</h3>
+
+            <div id="backOptions" style="display:none;">
+                <label class="action-btn" for="cameraInputBack"><span>📷</span> Scan ID Barcode</label>
+                <label class="action-btn" for="cameraInputBack2"><span>📸</span> Take Picture</label>
+                <label class="action-btn" for="fileInputBack"><span>🖼️</span> Upload Picture</label>
+            </div>
+
+            <div id="frontOptions" style="display:none;">
+                <label class="action-btn" for="cameraInputFront"><span>📸</span> Take Picture</label>
+                <label class="action-btn" for="fileInputFront"><span>🖼️</span> Upload from Library</label>
+            </div>
+
+            <button class="action-btn close-btn" onclick="closeActionSheet(null)">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Hidden Inputs - Separate for front and back -->
+    <input type="file" id="cameraInputFront" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'front')">
+    <input type="file" id="fileInputFront" accept="image/*" style="display:none;" onchange="processFileFromLabel(this, 'front')">
+    <input type="file" id="cameraInputBack" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'back')">
+    <input type="file" id="cameraInputBack2" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'back')">
+    <input type="file" id="fileInputBack" accept="image/*" style="display:none;" onchange="processFileFromLabel(this, 'back')">
+
+    <script>
+        // ============================================
+        // SUPABASE CONFIGURATION
+        // ============================================
+        const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+        let supabaseClient = null;
+        try {
+            if (window.supabase && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.warn('Supabase not configured:', e);
+        }
+
+        // Backend API URL (for barcode scanning)
+        const API_BASE_URL = 'http://127.0.0.1:5001';
+
+        let scannedData = {};
+        let frontImageFile = null;
+        let currentUploadType = null;
+        let customerRecord = null;
+        let hasExistingCard = null; // true = YES, false = NO
+        let residentType = null; // 'dc' or 'nondc'
+
+        // ============================================
+        // ANIMATED CIRCULAR PROGRESS BAR
+        // ============================================
+        const PROGRESS_STEPS = {
+            0: { percent: 0, label: 'Getting Started' },
+            1: { percent: 33, label: 'ID Verification' },
+            2: { percent: 66, label: 'Review Information' },
+            3: { percent: 100, label: 'Complete' }
+        };
+
+        function updateProgress(step) {
+            // Update inner progress bar (inside container)
+            const progressCircle = document.getElementById('progressCircleInner');
+            const progressText = document.getElementById('progressTextInner');
+            const progressLabel = document.getElementById('progressLabelInner');
+            
+            if (!progressCircle) return;
+
+            const { percent, label } = PROGRESS_STEPS[step] || PROGRESS_STEPS[0];
+
+            // Calculate stroke-dashoffset (circumference = 2 * π * r = 2 * 3.14159 * 28 ≈ 175.93)
+            const circumference = 175.93;
+            const offset = circumference - (percent / 100) * circumference;
+            
+            progressCircle.style.strokeDashoffset = offset;
+            if (progressText) progressText.textContent = `${percent}%`;
+            if (progressLabel) progressLabel.textContent = label;
+        }
+
+        // Expand/collapse ID upload areas
+        function expandBackIdArea() {
+            const frontCol = document.getElementById('frontIdCol');
+            const backCol = document.getElementById('backIdCol');
+            const backUploadArea = document.getElementById('backUploadArea');
+            
+            if (frontCol) frontCol.classList.add('collapsed');
+            if (backCol) backCol.classList.add('expanded');
+            if (backUploadArea) backUploadArea.classList.add('expanded');
+        }
+
+        function resetIdUploadLayout() {
+            const frontCol = document.getElementById('frontIdCol');
+            const backCol = document.getElementById('backIdCol');
+            const backUploadArea = document.getElementById('backUploadArea');
+            
+            if (frontCol) frontCol.classList.remove('collapsed');
+            if (backCol) backCol.classList.remove('expanded');
+            if (backUploadArea) backUploadArea.classList.remove('expanded');
+        }
+
+        // Start check-in from welcome page
+        function startCheckin() {
+            console.log('startCheckin called');
+            const step0 = document.getElementById('step0');
+            const stepsContainer = document.getElementById('stepsContainer');
+            const step1 = document.getElementById('step1');
+            
+            if (step0) step0.classList.remove('active');
+            if (stepsContainer) stepsContainer.style.display = 'block';
+            if (step1) step1.classList.add('active');
+            
+            // Update progress bar
+            updateProgress(1);
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+
+            for (let i = 1; i <= 3; i++) {
+                const ind = document.getElementById(`step${i}-indicator`);
+                if (i === step) {
+                    ind.classList.add('active');
+                    ind.classList.remove('completed');
+                } else if (i < step) {
+                    ind.classList.remove('active');
+                    ind.classList.add('completed');
+                    ind.innerHTML = '✓';
+                } else {
+                    ind.classList.remove('active', 'completed');
+                    ind.innerHTML = i;
+                }
+            }
+
+            // Update connecting lines
+            const line12 = document.getElementById('line1-2');
+            const line23 = document.getElementById('line2-3');
+            if (step >= 2) line12.classList.add('completed');
+            else line12.classList.remove('completed');
+            if (step >= 3) line23.classList.add('completed');
+            else line23.classList.remove('completed');
+            
+            // Update circular progress bar
+            updateProgress(step);
+        }
+
+        // Medical Card Toggle Handler
+        function handleCardToggle(value) {
+            const yesBtn = document.getElementById('cardYes');
+            const noBtn = document.getElementById('cardNo');
+            const residentTypeSection = document.getElementById('residentTypeSection');
+            
+            yesBtn.classList.remove('selected');
+            noBtn.classList.remove('selected');
+            
+            if (value === 'yes') {
+                yesBtn.classList.add('selected');
+                hasExistingCard = true;
+                residentTypeSection.style.display = 'none';
+                residentType = null;
+            } else {
+                noBtn.classList.add('selected');
+                hasExistingCard = false;
+                residentTypeSection.style.display = 'block';
+            }
+        }
+
+        // Resident Type Selection
+        function selectResidentType(type) {
+            document.getElementById('dcResident').classList.remove('selected');
+            document.getElementById('nonDcResident').classList.remove('selected');
+            
+            if (type === 'dc') {
+                document.getElementById('dcResident').classList.add('selected');
+                residentType = 'dc';
+            } else {
+                document.getElementById('nonDcResident').classList.add('selected');
+                residentType = 'nondc';
+            }
+            
+            console.log('Resident type selected:', residentType);
+        }
+
+        // Modal Logic
+        function openActionSheet(type) {
+            currentUploadType = type;
+            document.getElementById('actionSheet').classList.add('active');
+            document.getElementById('backOptions').style.display = (type === 'back' ? 'block' : 'none');
+            document.getElementById('frontOptions').style.display = (type === 'front' ? 'block' : 'none');
+        }
+
+        function closeActionSheet(e) {
+            if (e === null || e.target === document.getElementById('actionSheet')) {
+                document.getElementById('actionSheet').classList.remove('active');
+            }
+        }
+
+        function triggerInput(source) {
+            closeActionSheet(null);
+            if (source === 'camera') {
+                document.getElementById('cameraInput').click();
+            } else {
+                document.getElementById('fileInput').click();
+            }
+        }
+
+        // File Handler from Label (direct trigger - works on mobile)
+        function processFileFromLabel(input, type) {
+            closeActionSheet(null);
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const base64 = e.target.result;
+                    if (type === 'front') {
+                        frontImageFile = file;
+                        document.getElementById('frontPreview').src = base64;
+                        document.getElementById('frontPreview').style.display = 'block';
+                        document.getElementById('frontPlaceholder').style.display = 'none';
+                    } else {
+                        // Back ID - expand and scan
+                        expandBackIdArea();
+                        document.getElementById('backPreview').src = base64;
+                        document.getElementById('backPreview').style.display = 'block';
+                        document.getElementById('backPlaceholder').style.display = 'none';
+                        document.getElementById('backLoading').style.display = 'block';
+                        document.getElementById('backPreview').style.opacity = '0.5';
+                        scanBarcode(base64);
+                    }
+                };
+                reader.readAsDataURL(file);
+                input.value = ''; // Reset for next use
+            }
+        }
+
+        // File Handler
+        async function processFile(input, source) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                input.value = '';
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const base64 = e.target.result;
+
+                    if (currentUploadType === 'front') {
+                        frontImageFile = file;
+                        document.getElementById('frontPreview').src = base64;
+                        document.getElementById('frontPreview').style.display = 'block';
+                        document.getElementById('frontPlaceholder').style.display = 'none';
+                    } else {
+                        // Expand back ID area when scanning
+                        expandBackIdArea();
+                        document.getElementById('backPreview').src = base64;
+                        document.getElementById('backPreview').style.display = 'block';
+                        document.getElementById('backPlaceholder').style.display = 'none';
+                        document.getElementById('backLoading').style.display = 'block';
+                        document.getElementById('backPreview').style.opacity = '0.5';
+                        scanBarcode(base64);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function scanBarcode(base64Image) {
+            const statusDiv = document.getElementById('scanStatus');
+            statusDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/scan-barcode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64Image })
+                });
+
+                const result = await response.json();
+
+                document.getElementById('backLoading').style.display = 'none';
+                document.getElementById('backPreview').style.opacity = '1';
+
+                if (result.success) {
+                    scannedData = result.data;
+                    statusDiv.style.display = 'block';
+                    statusDiv.className = 'status-msg success';
+                    statusDiv.textContent = '✓ ID scanned successfully!';
+                    populateForm(scannedData);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                document.getElementById('backLoading').style.display = 'none';
+                document.getElementById('backPreview').style.opacity = '1';
+
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status-msg error';
+                statusDiv.innerHTML = '✗ Scan failed. Please try again with a clearer photo.';
+                console.error(error);
+            }
+        }
+
+        function populateForm(data) {
+            // Only populate name and DOB initially - address will be populated in Step 2 based on resident type
+            if (data.firstName) document.getElementById('firstName').value = data.firstName;
+            if (data.lastName) document.getElementById('lastName').value = data.lastName;
+            if (data.dateOfBirth) document.getElementById('dob').value = data.dateOfBirth;
+            // Don't populate address here - it will be populated in goToStep2() based on resident type
+        }
+        
+        // Populate address fields based on resident type
+        function populateAddressFields() {
+            console.log('populateAddressFields called');
+            console.log('residentType:', residentType);
+            console.log('scannedData:', scannedData);
+            
+            // For Non-DC residents, use actual address if available
+            if (residentType === 'nondc' && scannedData.actualAddress) {
+                console.log('Using ACTUAL address for Non-DC resident');
+                const actual = scannedData.actualAddress;
+                if (actual.street) document.getElementById('street').value = actual.street;
+                if (actual.city) document.getElementById('city').value = actual.city;
+                if (actual.state) document.getElementById('state').value = actual.state;
+                if (actual.zip) document.getElementById('zip').value = actual.zip;
+            } else {
+                // For DC residents or if no actual address, use default scannedData address
+                console.log('Using default (DC) address');
+                if (scannedData.street) document.getElementById('street').value = scannedData.street;
+                if (scannedData.city) document.getElementById('city').value = scannedData.city;
+                if (scannedData.state) document.getElementById('state').value = scannedData.state;
+                if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
+            }
+        }
+
+        // Switch address based on resident type selection
+        function switchAddressForResidentType() {
+            console.log('switchAddressForResidentType called');
+            console.log('residentType:', residentType);
+            console.log('scannedData:', scannedData);
+            console.log('scannedData.actualAddress:', scannedData.actualAddress);
+            
+            if (!scannedData.actualAddress) {
+                console.log('No actualAddress available - using default address');
+                return; // No actual address available (DC ID or no scan yet)
+            }
+
+            if (residentType === 'nondc') {
+                console.log('Switching to ACTUAL address for Non-DC resident');
+                // Use actual address from ID for Non-DC residents
+                const actual = scannedData.actualAddress;
+                if (actual.street) {
+                    document.getElementById('street').value = actual.street;
+                    console.log('Set street to:', actual.street);
+                }
+                if (actual.city) {
+                    document.getElementById('city').value = actual.city;
+                    console.log('Set city to:', actual.city);
+                }
+                if (actual.state) {
+                    document.getElementById('state').value = actual.state;
+                    console.log('Set state to:', actual.state);
+                }
+                if (actual.zip) {
+                    document.getElementById('zip').value = actual.zip;
+                    console.log('Set zip to:', actual.zip);
+                }
+            } else if (residentType === 'dc') {
+                console.log('Switching to DC address for DC resident');
+                // Use DC address (already populated from scannedData)
+                if (scannedData.street) document.getElementById('street').value = scannedData.street;
+                if (scannedData.city) document.getElementById('city').value = scannedData.city;
+                if (scannedData.state) document.getElementById('state').value = scannedData.state;
+                if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
+            }
+        }
+
+        function goToStep2() {
+            const phone = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
+
+            if (!frontImageFile) return alert('Please upload Front of ID.');
+            if (!scannedData.firstName) return alert('Please scan Back of ID.');
+            if (hasExistingCard === null) return alert('Please indicate if you have a Medical Cannabis Card.');
+            if (!phone || !email) return alert('Please enter contact info.');
+            
+            // If NO card selected, require resident type selection
+            if (hasExistingCard === false && !residentType) {
+                return alert('Please select DC Resident or Non DC Resident.');
+            }
+
+            // Set default expiration date (3 months from now)
+            const today = new Date();
+            const exp = new Date(today.setMonth(today.getMonth() + 3));
+            document.getElementById('expDate').value = exp.toISOString().split('T')[0];
+
+            if (hasExistingCard) {
+                // YES - Skip to registration/check-in (Step 3)
+                document.getElementById('step3Title').textContent = 'Complete Your Check-in';
+                document.getElementById('step3Subtitle').textContent = 'Enter your existing medical cannabis registration details.';
+                document.getElementById('step3BackBtn').style.display = 'inline-block'; // Show back button
+                showStep(3);
+            } else {
+                // NO - Continue to verification/submission (Step 2)
+                // Show time period section only for Non-DC residents
+                const timePeriodSection = document.getElementById('timePeriodSection');
+                if (residentType === 'nondc') {
+                    timePeriodSection.style.display = 'block';
+                } else {
+                    timePeriodSection.style.display = 'none';
+                }
+                
+                // Populate address fields with correct address based on resident type
+                populateAddressFields();
+                
+                showStep(2);
+            }
+        }
+
+        async function submitApplication() {
+            const consentEmail = document.getElementById('consentEmail').checked;
+            const consentAuth = document.getElementById('consentAuth').checked;
+            const consentLegal = document.getElementById('consentLegal').checked;
+
+            if (!consentEmail || !consentAuth || !consentLegal) {
+                return alert('Please agree to all terms and consents.');
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const statusDiv = document.getElementById('submissionStatus');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            // Prepare form data for QuickBase submission
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const applicationData = {
+                    firstName: document.getElementById('firstName').value,
+                    middleInitial: scannedData.middleInitial || '',
+                    lastName: document.getElementById('lastName').value,
+                    suffix: scannedData.suffix || '',
+                    dateOfBirth: document.getElementById('dob').value,
+                    street: document.getElementById('street').value,
+                    aptSuite: scannedData.aptSuite || '',
+                    city: document.getElementById('city').value,
+                    state: document.getElementById('state').value,
+                    zip: document.getElementById('zip').value,
+                    phoneNumber: document.getElementById('phone').value,
+                    email: document.getElementById('email').value,
+                    idImageBase64: e.target.result,
+                    residentType: residentType,
+                    timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
+                };
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/submit-application`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(applicationData)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-msg success';
+                        statusDiv.innerHTML = '✓ Application form filled successfully!<br>The browser will stay open for your review.';
+
+                        // Save to Supabase if configured
+                        if (supabaseClient && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                            const customerData = {
+                                first_name: applicationData.firstName,
+                                last_name: applicationData.lastName,
+                                date_of_birth: applicationData.dateOfBirth,
+                                street_address: applicationData.street,
+                                city: applicationData.city,
+                                state: applicationData.state,
+                                zip_code: applicationData.zip,
+                                phone: applicationData.phoneNumber,
+                                email: applicationData.email,
+                                resident_type: residentType,
+                                consent_email: consentEmail,
+                                consent_auth: consentAuth,
+                                consent_legal: consentLegal,
+                                has_existing_card: hasExistingCard,
+                                status: 'form_filled',
+                                created_at: new Date().toISOString()
+                            };
+                            await supabaseClient.from('customers').insert([customerData]);
+                        }
+
+                        btn.textContent = 'Form Filled - Review in Browser';
+                        setTimeout(() => {
+                            statusDiv.innerHTML += '<br><br>Please review the form in the browser window and submit when ready.';
+                        }, 2000);
+                    } else {
+                        throw new Error(result.error || 'Submission failed');
+                    }
+                } catch (error) {
+                    console.error('Error submitting application:', error);
+                    statusDiv.style.display = 'block';
+                    statusDiv.className = 'status-msg error';
+                    statusDiv.textContent = '✗ Error submitting application: ' + error.message;
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Application';
+                }
+            };
+            reader.readAsDataURL(frontImageFile);
+        }
+
+        async function finishCheckin() {
+            const regId = document.getElementById('regId').value;
+            const expDate = document.getElementById('expDate').value;
+            const btn = document.getElementById('checkinBtn');
+
+            if (!regId) {
+                return alert('Please enter your Registration ID.');
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                // Save check-in data
+                const checkinData = {
+                    first_name: document.getElementById('firstName').value || scannedData.firstName,
+                    last_name: document.getElementById('lastName').value || scannedData.lastName,
+                    phone: document.getElementById('phone').value,
+                    email: document.getElementById('email').value,
+                    registration_id: regId,
+                    expiration_date: expDate,
+                    has_existing_card: hasExistingCard,
+                    status: 'checked_in',
+                    checked_in_at: new Date().toISOString()
+                };
+
+                if (supabaseClient && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                    if (customerRecord && customerRecord.id) {
+                        await supabaseClient
+                            .from('customers')
+                            .update({
+                                registration_id: regId,
+                                expiration_date: expDate,
+                                status: 'checked_in',
+                                checked_in_at: new Date().toISOString()
+                            })
+                            .eq('id', customerRecord.id);
+                    } else {
+                        // New check-in (existing card holder)
+                        await supabaseClient.from('customers').insert([checkinData]);
+                    }
+                }
+
+                // Show success message in-frame
+                document.getElementById('checkinForm').style.display = 'none';
+                document.getElementById('checkinSuccess').style.display = 'block';
+            } catch (error) {
+                console.error('Error during check-in:', error);
+                // Still show success message even if save failed
+                document.getElementById('checkinForm').style.display = 'none';
+                document.getElementById('checkinSuccess').style.display = 'block';
+            }
+        }
+
+        // Back navigation from Step 3
+        function goBackFromStep3() {
+            // Reset Step 3 form
+            document.getElementById('checkinForm').style.display = 'block';
+            document.getElementById('checkinSuccess').style.display = 'none';
+            document.getElementById('regId').value = '';
+            
+            // Go back to Step 1
+            showStep(1);
+        }
+
+        // Initialize event listeners when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkinBtn = document.getElementById('checkinStartBtn');
+            if (checkinBtn) {
+                checkinBtn.addEventListener('click', startCheckin);
+            }
+        });
+    </script>
+
+</body>
+
+</html>

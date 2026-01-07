@@ -1,0 +1,52 @@
+
+***
+
+# Comprehensive Website Disclaimer (Footer)
+
+<footer style="background: #f9fafb; border-top: 1px solid #ddd; padding: 24px; margin-top: 40px; font-size: 12px; color: #555; line-height: 1.6;">
+
+    <div style="max-width: 500px; margin: 0 auto;">
+
+        <h4 style="margin: 0 0 12px 0; font-size: 13px; color: #1a1a1a;">⚠️ Important Disclaimer</h4>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>Lucid x Dreams is NOT affiliated with, endorsed by, or connected to the DC Alcohol Beverage and Cannabis Administration (ABCA).</strong> We are an independent service provider that helps you complete and submit your medical cannabis application faster. ABCA does not operate, manage, or endorse this service.
+        </p>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>Service Limitations:</strong> We are a form submission service only. We do NOT determine eligibility, guarantee approval, provide legal advice, or represent you before ABCA. Approval of your application is determined solely and entirely by DC ABCA based on their rules and policies. We cannot influence, expedite, or guarantee any decision made by ABCA.
+        </p>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>Your Responsibility:</strong> You are responsible for the accuracy of all information you provide. We use OCR technology to extract data from your ID, which may contain errors. You have the opportunity to review all extracted information before submission. If you submit false or inaccurate information to ABCA, you assume all legal responsibility for that action.
+        </p>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>Data Security:</strong> While we use industry-standard security measures, no system is 100% secure. By submitting your personal information and government ID through this service, you acknowledge the inherent risks and accept responsibility for any potential data security issues.
+        </p>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>ABCA Processing:</strong> ABCA controls all application processing, approval decisions, timelines, and their own data handling practices. Contact ABCA directly for questions about your application status: <a href="mailto:ABCA.CannabisInfo@dc.gov" style="color: #208090; text-decoration: none;">ABCA.CannabisInfo@dc.gov</a>
+        </p>
+
+        <p style="margin: 0 0 12px 0;">
+            <strong>No Legal Advice:</strong> Lucid x Dreams does not provide legal services or legal advice. We are not a law firm or attorney service. If you need legal assistance, consult a DC-licensed attorney.
+        </p>
+
+
+        <div style="border-top: 1px solid #ddd; padding-top: 16px; margin-top: 16px;">
+            <p style="margin: 0;">
+                <a href="/terms" style="color: #208090; text-decoration: none; margin-right: 16px;">Terms & Conditions</a>
+                <a href="/privacy" style="color: #208090; text-decoration: none; margin-right: 16px;">Privacy Policy</a>
+                <a href="mailto:help@lucidxdreams.com" style="color: #208090; text-decoration: none;">Contact Us</a>
+            </p>
+        </div>
+
+        <p style="margin: 12px 0 0 0; color: #666; font-size: 11px;">
+            <strong>Lucid x Dreams</strong> | 1336 N Capitol NW, Washington, DC 20002<br>
+            Email: help@lucidxdreams.com | Phone: 202 600-7610
+        </p>
+
+    </div>
+
+</footer>

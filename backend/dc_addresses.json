@@ -1,0 +1,214 @@
+{
+  "addresses": [
+    {
+      "street": "1600 Pennsylvania Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20500"
+    },
+    {
+      "street": "400 6th Street SW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20024"
+    },
+    {
+      "street": "1200 Constitution Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20002"
+    },
+    {
+      "street": "1000 Maine Avenue SW",
+      "aptSuite": "Apt 305",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20024"
+    },
+    {
+      "street": "2400 Virginia Avenue NW",
+      "aptSuite": "Unit 214",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20037"
+    },
+    {
+      "street": "1401 H Street NE",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20002"
+    },
+    {
+      "street": "3100 Connecticut Avenue NW",
+      "aptSuite": "Suite 402",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20008"
+    },
+    {
+      "street": "1310 U Street NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20009"
+    },
+    {
+      "street": "700 12th Street SE",
+      "aptSuite": "Apt 8B",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20003"
+    },
+    {
+      "street": "2000 14th Street NW",
+      "aptSuite": "Suite 400",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20009"
+    },
+    {
+      "street": "5335 Wisconsin Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20015"
+    },
+    {
+      "street": "1775 Eye Street NW",
+      "aptSuite": "Floor 3",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20006"
+    },
+    {
+      "street": "901 D Street SW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20024"
+    },
+    {
+      "street": "4200 Wisconsin Avenue NW",
+      "aptSuite": "Apt 512",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20016"
+    },
+    {
+      "street": "1730 Rhode Island Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20036"
+    },
+    {
+      "street": "2801 New Mexico Avenue NW",
+      "aptSuite": "Unit 720",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20007"
+    },
+    {
+      "street": "600 Maryland Avenue SW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20024"
+    },
+    {
+      "street": "1250 9th Street NW",
+      "aptSuite": "Apt 210",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20001"
+    },
+    {
+      "street": "3801 Connecticut Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20008"
+    },
+    {
+      "street": "1900 Q Street NW",
+      "aptSuite": "Suite 105",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20009"
+    },
+    {
+      "street": "725 8th Street SE",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20003"
+    },
+    {
+      "street": "2501 M Street NW",
+      "aptSuite": "Apt 401",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20037"
+    },
+    {
+      "street": "1440 Rhode Island Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20005"
+    },
+    {
+      "street": "3320 16th Street NW",
+      "aptSuite": "Unit 603",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20010"
+    },
+    {
+      "street": "1350 Pennsylvania Avenue NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20004"
+    },
+    {
+      "street": "1101 Connecticut Avenue NW",
+      "aptSuite": "Floor 7",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20036"
+    },
+    {
+      "street": "2515 K Street NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20037"
+    },
+    {
+      "street": "4301 Massachusetts Avenue NW",
+      "aptSuite": "Apt 208",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20016"
+    },
+    {
+      "street": "1620 L Street NW",
+      "aptSuite": "",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20036"
+    },
+    {
+      "street": "2301 M Street NW",
+      "aptSuite": "Suite 301",
+      "city": "Washington",
+      "state": "DC",
+      "zip": "20037"
+    }
+  ]
+}

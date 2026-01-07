@@ -1,0 +1,28 @@
+# Core Framework
+flask>=3.0.3
+flask-cors>=4.0.1
+
+# Image Processing
+Pillow>=10.4.0
+numpy>=1.26.0
+opencv-python-headless>=4.9.0
+
+# Barcode Scanning (PDF417 support)
+pdf417decoder
+zxing-cpp>=2.2.0
+pyzbar>=0.1.9
+
+# OCR Engines
+# surya-ocr>=0.6.0  # Disabled: requires torch (not available on Python 3.13)
+paddleocr>=2.8.1
+paddlepaddle>=2.6.0
+
+# Browser Automation
+playwright>=1.48.0
+
+# Utilities
+python-dotenv>=1.0.1
+greenlet>=3.1.1; python_version < "3.14"
+
+# Production Server
+gunicorn>=21.0.0
