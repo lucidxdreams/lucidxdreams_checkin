@@ -34,8 +34,8 @@ CORS(app)
 # Increase max content length to 50MB for large images
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
-# Frontend directory
-FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
+# Frontend directory (HTML files are in docs folder)
+FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'docs')
 
 # Initialize browser automation (headless=False so user can see the form)
 qb_automation = QuickBaseFormAutomation(headless=False)

@@ -530,22 +530,28 @@
         </div>
     </div>
 
+    <!-- Environment Configuration (replace with actual values during deployment) -->
+    <script src="env-config.js"></script>
     <script>
         // ============================================
-        // SUPABASE CONFIGURATION
+        // CONFIGURATION - Set via environment or inline
+        // These values should be injected at build/deploy time
         // ============================================
-        // TODO: Replace with your Supabase project credentials
-        const SUPABASE_URL = 'https://dzhmckhifjqklaeelsww.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6aG1ja2hpZmpxa2xhZWVsc3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3MjQ4NTksImV4cCI6MjA4MzMwMDg1OX0.KZ_HeRDkvhj_rWQG0xzf857SwiZT7HgrJF-WRFNL1AM';
+        const CONFIG = {
+            SUPABASE_URL: window.ENV_SUPABASE_URL || '',
+            SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || ''
+        };
         
-        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+        const supabase = (window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) 
+            ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY) 
+            : null;
 
         let allCustomers = [];
         let currentUser = null;
 
         // Check auth state on load
         async function checkAuth() {
-            if (!supabase || SUPABASE_URL === 'https://YOUR_PROJECT_ID.supabase.co') {
+            if (!supabase) {
                 // Demo mode - show dashboard with sample data
                 showDashboard();
                 loadDemoData();
@@ -571,7 +577,7 @@
                 return;
             }
 
-            if (!supabase || SUPABASE_URL === 'https://YOUR_PROJECT_ID.supabase.co') {
+            if (!supabase) {
                 // Demo mode
                 showDashboard();
                 loadDemoData();
@@ -712,7 +718,7 @@
             document.getElementById('tableLoading').style.display = 'flex';
             document.getElementById('tableContent').style.display = 'none';
             
-            if (supabase && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+            if (supabase) {
                 loadCustomers();
             } else {
                 setTimeout(() => renderCustomers(allCustomers), 500);

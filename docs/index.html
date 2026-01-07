@@ -976,30 +976,48 @@
                 <div class="id-upload-col" id="frontIdCol">
                     <div class="form-group">
                         <label>Front of ID</label>
-                        <div class="upload-area" id="frontUploadArea" onclick="openActionSheet('front')">
+                        <label class="upload-area" id="frontUploadArea" for="frontIdInput">
                             <div id="frontPlaceholder">
                                 <span class="upload-icon">📷</span>
-                                <span class="upload-text">Photo</span>
+                                <span class="upload-text">Tap to Upload</span>
                             </div>
                             <img id="frontPreview" class="preview-img">
-                        </div>
+                        </label>
+                        <input type="file" id="frontIdInput" accept="image/*" style="display:none;" onchange="handleFrontIdUpload(this)">
                     </div>
                 </div>
 
-                <!-- Back ID -->
-                <div class="id-upload-col" id="backIdCol">
+                <!-- Back ID - Hidden until Front is uploaded -->
+                <div class="id-upload-col" id="backIdCol" style="display:none;">
                     <div class="form-group">
                         <label>Back of ID</label>
-                        <div class="upload-area" id="backUploadArea" onclick="openActionSheet('back')">
-                            <div id="backPlaceholder">
-                                <span class="upload-icon">║▌║</span>
-                                <span class="upload-text">Barcode</span>
+                        <!-- Live Scanner Container -->
+                        <div id="liveScannerContainer" class="upload-area" style="min-height:180px; position:relative;">
+                            <div id="scannerPlaceholder">
+                                <span class="upload-icon">📷</span>
+                                <span class="upload-text">Starting camera...</span>
                             </div>
-                            <div id="backLoading" class="loading-indicator" style="display:none;">
+                            <div id="reader" style="width:100%;"></div>
+                            <div id="scannerLoading" class="loading-indicator" style="display:none;">
                                 <div class="loading-spinner"></div>
-                                <p>Processing...</p>
+                                <p>Scanning barcode...</p>
                             </div>
-                            <img id="backPreview" class="preview-img">
+                        </div>
+                        <!-- Manual Upload Fallback (shown after timeout) -->
+                        <div id="manualBackUpload" style="display:none; margin-top:10px;">
+                            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">Can't scan? Upload manually:</p>
+                            <label class="upload-area" for="backIdInput" style="padding:15px;">
+                                <div id="backPlaceholder">
+                                    <span class="upload-icon">🖼️</span>
+                                    <span class="upload-text">Upload Photo</span>
+                                </div>
+                                <img id="backPreview" class="preview-img">
+                            </label>
+                            <input type="file" id="backIdInput" accept="image/*" style="display:none;" onchange="handleBackIdUpload(this)">
+                        </div>
+                        <div id="backLoading" class="loading-indicator" style="display:none;">
+                            <div class="loading-spinner"></div>
+                            <p>Processing...</p>
                         </div>
                     </div>
                 </div>
@@ -1155,51 +1173,36 @@
         </footer>
     </div>
 
-    <!-- Action Modal -->
-    <div class="modal-overlay" id="actionSheet" onclick="closeActionSheet(event)">
-        <div class="action-sheet">
-            <h3 style="text-align:center; margin-bottom:20px; color:#ffffff; font-weight: 700;">Choose Option</h3>
-
-            <div id="backOptions" style="display:none;">
-                <label class="action-btn" for="cameraInputBack"><span>📷</span> Scan ID Barcode</label>
-                <label class="action-btn" for="cameraInputBack2"><span>📸</span> Take Picture</label>
-                <label class="action-btn" for="fileInputBack"><span>🖼️</span> Upload Picture</label>
-            </div>
-
-            <div id="frontOptions" style="display:none;">
-                <label class="action-btn" for="cameraInputFront"><span>📸</span> Take Picture</label>
-                <label class="action-btn" for="fileInputFront"><span>🖼️</span> Upload from Library</label>
-            </div>
-
-            <button class="action-btn close-btn" onclick="closeActionSheet(null)">Cancel</button>
-        </div>
-    </div>
-
-    <!-- Hidden Inputs - Separate for front and back -->
-    <input type="file" id="cameraInputFront" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'front')">
-    <input type="file" id="fileInputFront" accept="image/*" style="display:none;" onchange="processFileFromLabel(this, 'front')">
-    <input type="file" id="cameraInputBack" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'back')">
-    <input type="file" id="cameraInputBack2" accept="image/*" capture="environment" style="display:none;" onchange="processFileFromLabel(this, 'back')">
-    <input type="file" id="fileInputBack" accept="image/*" style="display:none;" onchange="processFileFromLabel(this, 'back')">
+    <!-- Environment Configuration (replace with actual values during deployment) -->
+    <script src="env-config.js"></script>
+    <!-- html5-qrcode library for live barcode scanning -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
     <script>
         // ============================================
-        // SUPABASE CONFIGURATION
+        // CONFIGURATION - Set via environment or inline
+        // These values should be injected at build/deploy time
         // ============================================
-        const SUPABASE_URL = 'https://dzhmckhifjqklaeelsww.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6aG1ja2hpZmpxa2xhZWVsc3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3MjQ4NTksImV4cCI6MjA4MzMwMDg1OX0.KZ_HeRDkvhj_rWQG0xzf857SwiZT7HgrJF-WRFNL1AM';
+        const CONFIG = {
+            // Supabase - leave empty to disable, or set via deployment environment
+            SUPABASE_URL: window.ENV_SUPABASE_URL || '',
+            SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || '',
+            // Backend API URL
+            API_BASE_URL: window.ENV_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5001' : '')
+        };
 
         let supabaseClient = null;
         try {
-            if (window.supabase && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            if (window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
+                supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                console.log('Supabase client initialized');
             }
         } catch (e) {
             console.warn('Supabase not configured:', e);
         }
 
         // Backend API URL (for barcode scanning)
-        const API_BASE_URL = 'lucidxdreamscheckin-production.up.railway.app';
+        const API_BASE_URL = CONFIG.API_BASE_URL;
 
         let scannedData = {};
         let frontImageFile = null;
@@ -1341,85 +1344,187 @@
             console.log('Resident type selected:', residentType);
         }
 
-        // Modal Logic
-        function openActionSheet(type) {
-            currentUploadType = type;
-            document.getElementById('actionSheet').classList.add('active');
-            document.getElementById('backOptions').style.display = (type === 'back' ? 'block' : 'none');
-            document.getElementById('frontOptions').style.display = (type === 'front' ? 'block' : 'none');
-        }
+        // ============================================
+        // LIVE BARCODE SCANNER
+        // ============================================
+        let html5QrCode = null;
+        let scannerTimeout = null;
+        let scannerStartTime = null;
+        const SCANNER_TIMEOUT_MS = 15000; // 15 seconds before showing manual upload option
 
-        function closeActionSheet(e) {
-            if (e === null || e.target === document.getElementById('actionSheet')) {
-                document.getElementById('actionSheet').classList.remove('active');
-            }
-        }
-
-        function triggerInput(source) {
-            closeActionSheet(null);
-            if (source === 'camera') {
-                document.getElementById('cameraInput').click();
-            } else {
-                document.getElementById('fileInput').click();
-            }
-        }
-
-        // File Handler from Label (direct trigger - works on mobile)
-        function processFileFromLabel(input, type) {
-            closeActionSheet(null);
+        // Handle Front ID Upload (direct file input - uses native mobile options)
+        function handleFrontIdUpload(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const base64 = e.target.result;
-                    if (type === 'front') {
-                        frontImageFile = file;
-                        document.getElementById('frontPreview').src = base64;
-                        document.getElementById('frontPreview').style.display = 'block';
-                        document.getElementById('frontPlaceholder').style.display = 'none';
-                    } else {
-                        // Back ID - expand and scan
-                        expandBackIdArea();
-                        document.getElementById('backPreview').src = base64;
-                        document.getElementById('backPreview').style.display = 'block';
-                        document.getElementById('backPlaceholder').style.display = 'none';
-                        document.getElementById('backLoading').style.display = 'block';
-                        document.getElementById('backPreview').style.opacity = '0.5';
-                        scanBarcode(base64);
-                    }
+                    frontImageFile = file;
+                    document.getElementById('frontPreview').src = base64;
+                    document.getElementById('frontPreview').style.display = 'block';
+                    document.getElementById('frontPlaceholder').style.display = 'none';
+                    
+                    // Show Back ID section and start live scanner
+                    showBackIdSection();
                 };
                 reader.readAsDataURL(file);
                 input.value = ''; // Reset for next use
             }
         }
 
-        // File Handler
-        async function processFile(input, source) {
+        // Show Back ID section and initialize live scanner
+        function showBackIdSection() {
+            const backIdCol = document.getElementById('backIdCol');
+            backIdCol.style.display = 'block';
+            
+            // Start live barcode scanner
+            startLiveScanner();
+        }
+
+        // Start live barcode scanner using html5-qrcode
+        async function startLiveScanner() {
+            const scannerPlaceholder = document.getElementById('scannerPlaceholder');
+            const scannerLoading = document.getElementById('scannerLoading');
+            const readerDiv = document.getElementById('reader');
+            const manualUpload = document.getElementById('manualBackUpload');
+            
+            scannerPlaceholder.style.display = 'none';
+            scannerLoading.style.display = 'block';
+            scannerStartTime = Date.now();
+
+            try {
+                html5QrCode = new Html5Qrcode('reader');
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 },
+                    formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
+                    aspectRatio: 1.5
+                };
+
+                await html5QrCode.start(
+                    { facingMode: 'environment' },
+                    config,
+                    onBarcodeScanSuccess,
+                    onBarcodeScanError
+                );
+
+                scannerLoading.style.display = 'none';
+                readerDiv.style.display = 'block';
+
+                // Set timeout to show manual upload option
+                scannerTimeout = setTimeout(() => {
+                    manualUpload.style.display = 'block';
+                }, SCANNER_TIMEOUT_MS);
+
+            } catch (err) {
+                console.error('Failed to start scanner:', err);
+                scannerLoading.style.display = 'none';
+                scannerPlaceholder.innerHTML = `
+                    <span class="upload-icon">⚠️</span>
+                    <span class="upload-text">Camera not available</span>
+                `;
+                scannerPlaceholder.style.display = 'block';
+                manualUpload.style.display = 'block';
+            }
+        }
+
+        // Stop live scanner
+        function stopLiveScanner() {
+            if (scannerTimeout) {
+                clearTimeout(scannerTimeout);
+                scannerTimeout = null;
+            }
+            if (html5QrCode) {
+                html5QrCode.stop().catch(err => console.log('Scanner stop error:', err));
+                html5QrCode = null;
+            }
+        }
+
+        // Barcode scan success callback
+        async function onBarcodeScanSuccess(decodedText, decodedResult) {
+            console.log('Barcode scanned:', decodedText.substring(0, 50) + '...');
+            
+            // Stop the scanner
+            stopLiveScanner();
+            
+            // Show loading state
+            const readerDiv = document.getElementById('reader');
+            const scannerLoading = document.getElementById('scannerLoading');
+            const statusDiv = document.getElementById('scanStatus');
+            
+            readerDiv.style.display = 'none';
+            scannerLoading.style.display = 'block';
+            scannerLoading.querySelector('p').textContent = 'Processing barcode...';
+            
+            try {
+                // Send barcode text to backend for parsing
+                const response = await fetch(`${API_BASE_URL}/api/parse-barcode`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcodeText: decodedText })
+                });
+
+                const result = await response.json();
+                scannerLoading.style.display = 'none';
+
+                if (result.success) {
+                    scannedData = result.data;
+                    statusDiv.style.display = 'block';
+                    statusDiv.className = 'status-msg success';
+                    statusDiv.textContent = '✓ ID scanned successfully!';
+                    
+                    // Hide scanner container and show success
+                    document.getElementById('liveScannerContainer').innerHTML = `
+                        <div style="text-align:center; padding:20px;">
+                            <span style="font-size:48px;">✓</span>
+                            <p style="color:var(--success); font-weight:600; margin-top:10px;">Barcode Scanned</p>
+                        </div>
+                    `;
+                    document.getElementById('manualBackUpload').style.display = 'none';
+                    
+                    populateForm(scannedData);
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                scannerLoading.style.display = 'none';
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status-msg error';
+                statusDiv.textContent = '✗ Failed to parse barcode. Please try manual upload.';
+                document.getElementById('manualBackUpload').style.display = 'block';
+                console.error(error);
+            }
+        }
+
+        // Barcode scan error callback (called frequently, just log)
+        function onBarcodeScanError(errorMessage) {
+            // This is called frequently when no barcode is detected - don't log
+        }
+
+        // Handle Back ID Manual Upload
+        function handleBackIdUpload(input) {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                input.value = '';
-
                 const reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     const base64 = e.target.result;
-
-                    if (currentUploadType === 'front') {
-                        frontImageFile = file;
-                        document.getElementById('frontPreview').src = base64;
-                        document.getElementById('frontPreview').style.display = 'block';
-                        document.getElementById('frontPlaceholder').style.display = 'none';
-                    } else {
-                        // Expand back ID area when scanning
-                        expandBackIdArea();
-                        document.getElementById('backPreview').src = base64;
-                        document.getElementById('backPreview').style.display = 'block';
-                        document.getElementById('backPlaceholder').style.display = 'none';
-                        document.getElementById('backLoading').style.display = 'block';
-                        document.getElementById('backPreview').style.opacity = '0.5';
-                        scanBarcode(base64);
-                    }
+                    
+                    // Stop live scanner if running
+                    stopLiveScanner();
+                    
+                    // Hide scanner, show preview
+                    document.getElementById('liveScannerContainer').style.display = 'none';
+                    document.getElementById('backPreview').src = base64;
+                    document.getElementById('backPreview').style.display = 'block';
+                    document.getElementById('backPlaceholder').style.display = 'none';
+                    document.getElementById('backLoading').style.display = 'block';
+                    
+                    // Send to backend for barcode scanning
+                    scanBarcode(base64);
                 };
                 reader.readAsDataURL(file);
+                input.value = ''; // Reset for next use
             }
         }
 
@@ -1625,7 +1730,7 @@
                         statusDiv.innerHTML = '✓ Application form filled successfully!<br>The browser will stay open for your review.';
 
                         // Save to Supabase if configured
-                        if (supabaseClient && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                        if (supabaseClient) {
                             const customerData = {
                                 first_name: applicationData.firstName,
                                 last_name: applicationData.lastName,
@@ -1692,7 +1797,7 @@
                     checked_in_at: new Date().toISOString()
                 };
 
-                if (supabaseClient && SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                if (supabaseClient) {
                     if (customerRecord && customerRecord.id) {
                         await supabaseClient
                             .from('customers')
