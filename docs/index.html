@@ -1724,8 +1724,8 @@
 
         <!-- Environment Configuration (replace with actual values during deployment) -->
         <script src="env-config.js"></script>
-        <!-- zxing-wasm library for high-speed PDF417 scanning -->
-        <script src="lib/zxing/zxing_reader.js"></script>
+        <!-- zxing-wasm (WebAssembly) via CDN for reliability -->
+        <script src="https://unpkg.com/zxing-wasm@1.2.9/dist/iife/zxing-wasm.js"></script>
 
         <script>
             // ============================================
@@ -1952,12 +1952,12 @@
                         throw new Error('ZXingWasm library not loaded');
                     }
 
-                    // Configure for PDF417 with explicit WASM location
-                    // Since we host it in docs/lib/zxing/, we need to tell it where to find .wasm
+                    // Configure for PDF417 using CDN for the WASM file
+                    // This eliminates relative path issues on different hostings
                     const reader = await ZXingWasmReader.ZXingReaderModule({
                         locateFile: (path, prefix) => {
                             if (path.endsWith('.wasm')) {
-                                return 'lib/zxing/zxing_reader.wasm';
+                                return `https://unpkg.com/zxing-wasm@1.2.9/dist/reader/${path}`;
                             }
                             return prefix + path;
                         }
@@ -1966,7 +1966,7 @@
                     return reader;
                 } catch (err) {
                     console.error('Failed to init ZXing:', err);
-                    return null;
+                    throw err; // Propagate error to show UI message
                 }
             }
 
