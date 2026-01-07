@@ -1956,10 +1956,11 @@
 
                     // Configure for PDF417 using verified CDN for the WASM file
                     // This ensures the heavy binary loads even if local server has MIME issues
-                    const readerModule = await ZXingModule.ZXingReaderModule({
+                    const readerModule = await ZXingModule.getZXingModule({
                         locateFile: (path, prefix) => {
                             if (path.endsWith('.wasm')) {
-                                // Proven working URL for the WASM binary
+                                // Proven working URL for the WASM binary or local file if correctly served
+                                // Using the CDN ensures it works regardless of local server config
                                 return `https://unpkg.com/zxing-wasm@1.2.9/dist/reader/zxing_reader.wasm`;
                             }
                             return prefix + path;
@@ -2049,7 +2050,7 @@
                             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
                             // Read PDF417
-                            const results = await reader.readBarcodes(imageData, {
+                            const results = await reader.readBarcodesFromImageData(imageData, {
                                 formats: ['PDF417'],
                                 tryHarder: true,
                                 tryRotate: true // Important for rotated IDs
