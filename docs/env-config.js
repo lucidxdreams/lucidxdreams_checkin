@@ -13,6 +13,6 @@
  */
 
 // Environment variables - set these for your deployment
-window.ENV_SUPABASE_URL = '';  // e.g., 'https://your-project.supabase.co'
-window.ENV_SUPABASE_ANON_KEY = '';  // e.g., 'your-anon-key'
-window.ENV_API_BASE_URL = '';  // e.g., 'https://your-api.railway.app' or leave empty for same-origin
+window.ENV_SUPABASE_URL = 'https://dzhmckhifjqklaeelsww.supabase.co';  // e.g., 'https://your-project.supabase.co'
+window.ENV_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR6aG1ja2hpZmpxa2xhZWVsc3d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3MjQ4NTksImV4cCI6MjA4MzMwMDg1OX0.KZ_HeRDkvhj_rWQG0xzf857SwiZT7HgrJF-WRFNL1AM';  // e.g., 'your-anon-key'
+window.ENV_API_BASE_URL = 'lucidxdreamscheckin-production.up.railway.app';  // e.g., 'https://your-api.railway.app' or leave empty for same-origin
