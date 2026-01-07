@@ -2023,9 +2023,29 @@
                     video.srcObject = videoStream;
                     await video.play();
 
-                    // 2. Initialize Encoder
-                    const reader = await getZXingReader();
-                    if (!reader) throw new Error('Could not load barcode reader engine');
+                    // 2. Initialize Scanner Engine (Native vs WASM)
+                    let nativeDetector = null;
+                    let useNative = false;
+
+                    // CHECK FOR NATIVE SUPPORT
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const formats = await window.BarcodeDetector.getSupportedFormats();
+                            if (formats.includes('pdf417')) {
+                                nativeDetector = new window.BarcodeDetector({ formats: ['pdf417'] });
+                                useNative = true;
+                                console.log('Using Native BarcodeDetector (Hardware Accelerated)');
+                            }
+                        } catch (e) {
+                            console.warn('Native BarcodeDetector failed init, falling back to WASM', e);
+                        }
+                    }
+
+                    // Fallback to WASM if native not available
+                    if (!useNative) {
+                         const reader = await getZXingReader();
+                         if (!reader) throw new Error('Could not load barcode reader engine');
+                    }
 
                     isScanning = true;
 
@@ -2041,31 +2061,50 @@
                             return;
                         }
 
-                        // Set canvas size (downscale slightly for speed if needed, but 720p is good for PDF417)
+                        // Set canvas size
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+                        
                         try {
-                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            if (useNative) {
+                                // --- NATIVE SCANNING PATH ---
+                                try {
+                                    const barcodes = await nativeDetector.detect(video);
+                                    if (barcodes.length > 0) {
+                                        const result = barcodes[0];
+                                         if (result.rawValue && result.rawValue.length > 50) {
+                                            console.log('Native Scanner detected:', result.rawValue.substring(0, 20) + '...');
+                                            onBarcodeScanSuccess(result.rawValue);
+                                            return; // Stop loop
+                                        }
+                                    }
+                                } catch (err) {
+                                    // Native detection error, continue loop
+                                }
+                            } else {
+                                // --- WASM SCANNING PATH ---
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                            // Read PDF417
-                            const results = await reader.readBarcodesFromImageData(imageData, {
-                                formats: ['PDF417'],
-                                tryHarder: true,
-                                tryRotate: true // Important for rotated IDs
-                            });
+                                // Read PDF417
+                                const reader = await getZXingReader(); // Already inited
+                                const results = await reader.readBarcodesFromImageData(imageData, {
+                                    formats: ['PDF417'],
+                                    tryHarder: true,
+                                    tryRotate: true
+                                });
 
-                            if (results && results.length > 0) {
-                                const result = results[0];
-                                if (result.text && result.text.length > 50) {
-                                    console.log('ZXing detected:', result.text.substring(0, 20) + '...');
-                                    onBarcodeScanSuccess(result.text);
-                                    return; // Stop loop
+                                if (results && results.length > 0) {
+                                    const result = results[0];
+                                    if (result.text && result.text.length > 50) {
+                                        console.log('ZXing detected:', result.text.substring(0, 20) + '...');
+                                        onBarcodeScanSuccess(result.text);
+                                        return; // Stop loop
+                                    }
                                 }
                             }
                         } catch (e) {
-                            // Ignore frame errors
+                           // Ignore frame errors
                         }
 
                         if (isScanning) requestAnimationFrame(scanFrame);
