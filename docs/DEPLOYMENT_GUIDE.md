@@ -86,16 +86,26 @@ Create `railway.json`:
     "numReplicas": 1,
     "sleepApplication": false,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300
   }
 }
 ```
 
 #### Create `Procfile`
 
+The Procfile includes proper timeout and worker settings to prevent crashes during OCR/barcode operations:
+
 ```bash
-echo "web: gunicorn app:app" > Procfile
+web: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50 app:app
 ```
+
+**Important Procfile settings:**
+- `--timeout 120`: Allows up to 2 minutes for OCR/barcode processing
+- `--workers 2`: Handles concurrent requests
+- `--keep-alive 5`: Maintains connections
+- `--max-requests 1000`: Prevents memory leaks by recycling workers
 
 #### Create `runtime.txt` (specify Python version)
 

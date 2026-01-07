@@ -402,7 +402,85 @@
             font-size: 16px;
         }
 
-        /* ID Upload Row - Side by Side */
+        /* ID Upload Section - Redesigned */
+        .id-upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        /* Front ID Compact Display (after upload) */
+        .front-id-compact {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(45, 143, 78, 0.15);
+            border: 1px solid var(--primary);
+            border-radius: var(--radius-md);
+            animation: slideIn 0.3s ease;
+        }
+
+        .front-id-compact.visible {
+            display: flex;
+        }
+
+        .front-id-compact .file-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .front-id-compact .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .front-id-compact .file-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .front-id-compact .file-status {
+            font-size: 12px;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .front-id-compact .change-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .front-id-compact .change-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ID Upload Row - Legacy support */
         .id-upload-row {
             display: flex;
             gap: 12px;
@@ -429,6 +507,263 @@
 
         .id-upload-col .form-group {
             margin-bottom: 0;
+        }
+
+        /* Professional Barcode Scanner */
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            min-height: 280px;
+            background: linear-gradient(180deg, #0a0f1a 0%, #1a1f2e 100%);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 2px solid rgba(45, 143, 78, 0.3);
+            box-shadow: 
+                0 0 40px rgba(45, 143, 78, 0.15),
+                inset 0 0 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .scanner-viewport {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-viewport video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Scanner Frame Overlay */
+        .scanner-frame {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* Corner Brackets */
+        .scanner-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-color: var(--primary);
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .scanner-corner.top-left {
+            top: 20px; left: 20px;
+            border-top-width: 3px;
+            border-left-width: 3px;
+            border-top-left-radius: 8px;
+        }
+
+        .scanner-corner.top-right {
+            top: 20px; right: 20px;
+            border-top-width: 3px;
+            border-right-width: 3px;
+            border-top-right-radius: 8px;
+        }
+
+        .scanner-corner.bottom-left {
+            bottom: 20px; left: 20px;
+            border-bottom-width: 3px;
+            border-left-width: 3px;
+            border-bottom-left-radius: 8px;
+        }
+
+        .scanner-corner.bottom-right {
+            bottom: 20px; right: 20px;
+            border-bottom-width: 3px;
+            border-right-width: 3px;
+            border-bottom-right-radius: 8px;
+        }
+
+        /* Scanning Line Animation */
+        .scan-line {
+            position: absolute;
+            left: 25px;
+            right: 25px;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--primary) 20%, 
+                #4eff8a 50%, 
+                var(--primary) 80%, 
+                transparent 100%);
+            box-shadow: 
+                0 0 15px var(--primary),
+                0 0 30px var(--primary),
+                0 0 45px rgba(78, 255, 138, 0.5);
+            animation: scanMove 2s ease-in-out infinite;
+        }
+
+        @keyframes scanMove {
+            0%, 100% { top: 25px; opacity: 1; }
+            50% { top: calc(100% - 25px); opacity: 1; }
+        }
+
+        /* Grid Overlay */
+        .scanner-grid {
+            position: absolute;
+            inset: 20px;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 2px;
+            opacity: 0.15;
+        }
+
+        .scanner-grid-cell {
+            border: 1px solid var(--primary);
+            border-radius: 2px;
+            animation: gridPulse 3s ease-in-out infinite;
+            animation-delay: calc(var(--delay) * 0.1s);
+        }
+
+        @keyframes gridPulse {
+            0%, 100% { opacity: 0.3; background: transparent; }
+            50% { opacity: 1; background: rgba(45, 143, 78, 0.1); }
+        }
+
+        /* Scanner Status */
+        .scanner-status {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 16px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            text-align: center;
+        }
+
+        .scanner-status-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .scanner-status-text .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Scanner Placeholder (before camera starts) */
+        .scanner-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: linear-gradient(180deg, #0a0f1a 0%, #1a1f2e 100%);
+        }
+
+        .scanner-placeholder .icon {
+            font-size: 48px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .scanner-placeholder .text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Manual Upload Button */
+        .manual-upload-section {
+            display: none;
+            margin-top: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .manual-upload-section.visible {
+            display: block;
+        }
+
+        .manual-upload-btn {
+            width: 100%;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .manual-upload-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Success State */
+        .scanner-success {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: linear-gradient(180deg, rgba(45, 143, 78, 0.2) 0%, rgba(45, 143, 78, 0.1) 100%);
+            animation: successPulse 0.5s ease;
+        }
+
+        .scanner-success .checkmark {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+
+        @keyframes successPulse {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
         }
 
         /* Upload Areas */
@@ -970,55 +1305,86 @@
         <div id="step1" class="step-content">
             <h3 class="section-title"><span class="icon">🪪</span> ID Verification</h3>
 
-            <!-- ID Upload Row - Side by Side -->
-            <div class="id-upload-row" id="idUploadRow">
-                <!-- Front ID -->
-                <div class="id-upload-col" id="frontIdCol">
-                    <div class="form-group">
-                        <label>Front of ID</label>
-                        <label class="upload-area" id="frontUploadArea" for="frontIdInput">
-                            <div id="frontPlaceholder">
-                                <span class="upload-icon">📷</span>
-                                <span class="upload-text">Tap to Upload</span>
-                            </div>
-                            <img id="frontPreview" class="preview-img">
-                        </label>
-                        <input type="file" id="frontIdInput" accept="image/*" style="display:none;" onchange="handleFrontIdUpload(this)">
-                    </div>
+            <!-- ID Upload Section - Redesigned -->
+            <div class="id-upload-section">
+                
+                <!-- Front ID Upload (initial state) -->
+                <div id="frontIdUpload" class="form-group">
+                    <label>Front of ID</label>
+                    <label class="upload-area" id="frontUploadArea" for="frontIdInput">
+                        <div id="frontPlaceholder">
+                            <span class="upload-icon">📷</span>
+                            <span class="upload-text">Tap to Upload Front of ID</span>
+                        </div>
+                    </label>
+                    <input type="file" id="frontIdInput" accept="image/*" style="display:none;" onchange="handleFrontIdUpload(this)">
                 </div>
 
-                <!-- Back ID - Hidden until Front is uploaded -->
-                <div class="id-upload-col" id="backIdCol" style="display:none;">
-                    <div class="form-group">
-                        <label>Back of ID</label>
-                        <!-- Live Scanner Container -->
-                        <div id="liveScannerContainer" class="upload-area" style="min-height:180px; position:relative;">
-                            <div id="scannerPlaceholder">
-                                <span class="upload-icon">📷</span>
-                                <span class="upload-text">Starting camera...</span>
+                <!-- Front ID Compact Display (after upload) -->
+                <div id="frontIdCompact" class="front-id-compact">
+                    <div class="file-icon">🪪</div>
+                    <div class="file-info">
+                        <div class="file-name" id="frontFileName">IMG_1234.jpeg</div>
+                        <div class="file-status"><span>✓</span> Front ID uploaded</div>
+                    </div>
+                    <button class="change-btn" onclick="changeFrontId()">Change</button>
+                </div>
+
+                <!-- Back ID Scanner Section (hidden until front is uploaded) -->
+                <div id="backIdSection" style="display:none;">
+                    <label style="display:block; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Back of ID - Barcode Scan</label>
+                    
+                    <!-- Professional Scanner Container -->
+                    <div id="scannerContainer" class="scanner-container">
+                        <div class="scanner-viewport">
+                            <!-- Scanner Placeholder -->
+                            <div id="scannerPlaceholder" class="scanner-placeholder">
+                                <span class="icon">📷</span>
+                                <span class="text">Initializing camera...</span>
                             </div>
-                            <div id="reader" style="width:100%;"></div>
-                            <div id="scannerLoading" class="loading-indicator" style="display:none;">
-                                <div class="loading-spinner"></div>
-                                <p>Scanning barcode...</p>
+                            
+                            <!-- Video element for camera feed -->
+                            <div id="reader" style="width:100%; height:100%; display:none;"></div>
+                            
+                            <!-- Scanner Frame Overlay -->
+                            <div class="scanner-frame" id="scannerFrame" style="display:none;">
+                                <div class="scanner-corner top-left"></div>
+                                <div class="scanner-corner top-right"></div>
+                                <div class="scanner-corner bottom-left"></div>
+                                <div class="scanner-corner bottom-right"></div>
+                                <div class="scan-line"></div>
+                                <div class="scanner-grid" id="scannerGrid"></div>
                             </div>
-                        </div>
-                        <!-- Manual Upload Fallback (shown after timeout) -->
-                        <div id="manualBackUpload" style="display:none; margin-top:10px;">
-                            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">Can't scan? Upload manually:</p>
-                            <label class="upload-area" for="backIdInput" style="padding:15px;">
-                                <div id="backPlaceholder">
-                                    <span class="upload-icon">🖼️</span>
-                                    <span class="upload-text">Upload Photo</span>
+                            
+                            <!-- Scanner Status -->
+                            <div class="scanner-status" id="scannerStatus" style="display:none;">
+                                <div class="scanner-status-text">
+                                    <span class="dot"></span>
+                                    <span>Scanning for barcode...</span>
                                 </div>
-                                <img id="backPreview" class="preview-img">
-                            </label>
-                            <input type="file" id="backIdInput" accept="image/*" style="display:none;" onchange="handleBackIdUpload(this)">
+                            </div>
+                            
+                            <!-- Success State -->
+                            <div id="scannerSuccess" class="scanner-success" style="display:none;">
+                                <div class="checkmark">✓</div>
+                                <span style="font-size:18px; font-weight:600; color:var(--success);">Barcode Scanned!</span>
+                            </div>
                         </div>
-                        <div id="backLoading" class="loading-indicator" style="display:none;">
-                            <div class="loading-spinner"></div>
-                            <p>Processing...</p>
-                        </div>
+                    </div>
+                    
+                    <!-- Manual Upload Fallback -->
+                    <div id="manualUploadSection" class="manual-upload-section">
+                        <label class="manual-upload-btn" for="backIdInput">
+                            <span>📤</span>
+                            <span>Can't scan? Upload photo of back instead</span>
+                        </label>
+                        <input type="file" id="backIdInput" accept="image/*" style="display:none;" onchange="handleBackIdUpload(this)">
+                    </div>
+                    
+                    <!-- Processing indicator -->
+                    <div id="backLoading" class="loading-indicator" style="display:none;">
+                        <div class="loading-spinner"></div>
+                        <p>Processing barcode...</p>
                     </div>
                 </div>
             </div>
@@ -1240,25 +1606,33 @@
             if (progressLabel) progressLabel.textContent = label;
         }
 
-        // Expand/collapse ID upload areas
-        function expandBackIdArea() {
-            const frontCol = document.getElementById('frontIdCol');
-            const backCol = document.getElementById('backIdCol');
-            const backUploadArea = document.getElementById('backUploadArea');
-            
-            if (frontCol) frontCol.classList.add('collapsed');
-            if (backCol) backCol.classList.add('expanded');
-            if (backUploadArea) backUploadArea.classList.add('expanded');
+        // Generate scanner grid cells with random animation delays
+        function initScannerGrid() {
+            const grid = document.getElementById('scannerGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            for (let i = 0; i < 48; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'scanner-grid-cell';
+                cell.style.setProperty('--delay', Math.random() * 30);
+                grid.appendChild(cell);
+            }
         }
 
-        function resetIdUploadLayout() {
-            const frontCol = document.getElementById('frontIdCol');
-            const backCol = document.getElementById('backIdCol');
-            const backUploadArea = document.getElementById('backUploadArea');
+        // Change front ID (re-upload)
+        function changeFrontId() {
+            // Stop scanner if running
+            stopLiveScanner();
             
-            if (frontCol) frontCol.classList.remove('collapsed');
-            if (backCol) backCol.classList.remove('expanded');
-            if (backUploadArea) backUploadArea.classList.remove('expanded');
+            // Reset UI
+            document.getElementById('frontIdUpload').style.display = 'block';
+            document.getElementById('frontIdCompact').classList.remove('visible');
+            document.getElementById('backIdSection').style.display = 'none';
+            document.getElementById('scanStatus').style.display = 'none';
+            
+            // Reset state
+            frontImageFile = null;
+            scannedData = {};
         }
 
         // Start check-in from welcome page
@@ -1360,9 +1734,11 @@
                 reader.onload = function(e) {
                     const base64 = e.target.result;
                     frontImageFile = file;
-                    document.getElementById('frontPreview').src = base64;
-                    document.getElementById('frontPreview').style.display = 'block';
-                    document.getElementById('frontPlaceholder').style.display = 'none';
+                    
+                    // Hide upload area, show compact display with filename
+                    document.getElementById('frontIdUpload').style.display = 'none';
+                    document.getElementById('frontFileName').textContent = file.name;
+                    document.getElementById('frontIdCompact').classList.add('visible');
                     
                     // Show Back ID section and start live scanner
                     showBackIdSection();
@@ -1374,8 +1750,11 @@
 
         // Show Back ID section and initialize live scanner
         function showBackIdSection() {
-            const backIdCol = document.getElementById('backIdCol');
-            backIdCol.style.display = 'block';
+            const backIdSection = document.getElementById('backIdSection');
+            backIdSection.style.display = 'block';
+            
+            // Initialize scanner grid
+            initScannerGrid();
             
             // Start live barcode scanner
             startLiveScanner();
@@ -1384,12 +1763,11 @@
         // Start live barcode scanner using html5-qrcode
         async function startLiveScanner() {
             const scannerPlaceholder = document.getElementById('scannerPlaceholder');
-            const scannerLoading = document.getElementById('scannerLoading');
             const readerDiv = document.getElementById('reader');
-            const manualUpload = document.getElementById('manualBackUpload');
+            const scannerFrame = document.getElementById('scannerFrame');
+            const scannerStatus = document.getElementById('scannerStatus');
+            const manualUpload = document.getElementById('manualUploadSection');
             
-            scannerPlaceholder.style.display = 'none';
-            scannerLoading.style.display = 'block';
             scannerStartTime = Date.now();
 
             try {
@@ -1397,7 +1775,7 @@
                 
                 const config = {
                     fps: 10,
-                    qrbox: { width: 250, height: 150 },
+                    qrbox: { width: 280, height: 180 },
                     formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417],
                     aspectRatio: 1.5
                 };
@@ -1409,23 +1787,24 @@
                     onBarcodeScanError
                 );
 
-                scannerLoading.style.display = 'none';
+                // Hide placeholder, show camera feed with overlay
+                scannerPlaceholder.style.display = 'none';
                 readerDiv.style.display = 'block';
+                scannerFrame.style.display = 'block';
+                scannerStatus.style.display = 'block';
 
                 // Set timeout to show manual upload option
                 scannerTimeout = setTimeout(() => {
-                    manualUpload.style.display = 'block';
+                    manualUpload.classList.add('visible');
                 }, SCANNER_TIMEOUT_MS);
 
             } catch (err) {
                 console.error('Failed to start scanner:', err);
-                scannerLoading.style.display = 'none';
                 scannerPlaceholder.innerHTML = `
-                    <span class="upload-icon">⚠️</span>
-                    <span class="upload-text">Camera not available</span>
+                    <span class="icon">⚠️</span>
+                    <span class="text">Camera not available</span>
                 `;
-                scannerPlaceholder.style.display = 'block';
-                manualUpload.style.display = 'block';
+                manualUpload.classList.add('visible');
             }
         }
 
@@ -1448,53 +1827,57 @@
             // Stop the scanner
             stopLiveScanner();
             
-            // Show loading state
+            // Show success state
             const readerDiv = document.getElementById('reader');
-            const scannerLoading = document.getElementById('scannerLoading');
+            const scannerFrame = document.getElementById('scannerFrame');
+            const scannerStatus = document.getElementById('scannerStatus');
+            const scannerSuccess = document.getElementById('scannerSuccess');
+            const backLoading = document.getElementById('backLoading');
             const statusDiv = document.getElementById('scanStatus');
+            const manualUpload = document.getElementById('manualUploadSection');
             
+            // Hide camera, show success animation
             readerDiv.style.display = 'none';
-            scannerLoading.style.display = 'block';
-            scannerLoading.querySelector('p').textContent = 'Processing barcode...';
+            scannerFrame.style.display = 'none';
+            scannerStatus.style.display = 'none';
+            scannerSuccess.style.display = 'flex';
+            manualUpload.classList.remove('visible');
             
-            try {
-                // Send barcode text to backend for parsing
-                const response = await fetch(`${API_BASE_URL}/api/parse-barcode`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcodeText: decodedText })
-                });
+            // After brief success animation, show processing
+            setTimeout(async () => {
+                scannerSuccess.querySelector('span:last-child').textContent = 'Processing...';
+                
+                try {
+                    // Send barcode text to backend for parsing
+                    const response = await fetch(`${API_BASE_URL}/api/parse-barcode`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ barcodeText: decodedText })
+                    });
 
-                const result = await response.json();
-                scannerLoading.style.display = 'none';
+                    const result = await response.json();
 
-                if (result.success) {
-                    scannedData = result.data;
+                    if (result.success) {
+                        scannedData = result.data;
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-msg success';
+                        statusDiv.textContent = '✓ ID scanned successfully!';
+                        
+                        scannerSuccess.querySelector('span:last-child').textContent = 'Complete!';
+                        
+                        populateForm(scannedData);
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    scannerSuccess.style.display = 'none';
                     statusDiv.style.display = 'block';
-                    statusDiv.className = 'status-msg success';
-                    statusDiv.textContent = '✓ ID scanned successfully!';
-                    
-                    // Hide scanner container and show success
-                    document.getElementById('liveScannerContainer').innerHTML = `
-                        <div style="text-align:center; padding:20px;">
-                            <span style="font-size:48px;">✓</span>
-                            <p style="color:var(--success); font-weight:600; margin-top:10px;">Barcode Scanned</p>
-                        </div>
-                    `;
-                    document.getElementById('manualBackUpload').style.display = 'none';
-                    
-                    populateForm(scannedData);
-                } else {
-                    throw new Error(result.error);
+                    statusDiv.className = 'status-msg error';
+                    statusDiv.textContent = '✗ Failed to parse barcode. Please try manual upload.';
+                    manualUpload.classList.add('visible');
+                    console.error(error);
                 }
-            } catch (error) {
-                scannerLoading.style.display = 'none';
-                statusDiv.style.display = 'block';
-                statusDiv.className = 'status-msg error';
-                statusDiv.textContent = '✗ Failed to parse barcode. Please try manual upload.';
-                document.getElementById('manualBackUpload').style.display = 'block';
-                console.error(error);
-            }
+            }, 800);
         }
 
         // Barcode scan error callback (called frequently, just log)
@@ -1513,12 +1896,14 @@
                     // Stop live scanner if running
                     stopLiveScanner();
                     
-                    // Hide scanner, show preview
-                    document.getElementById('liveScannerContainer').style.display = 'none';
-                    document.getElementById('backPreview').src = base64;
-                    document.getElementById('backPreview').style.display = 'block';
-                    document.getElementById('backPlaceholder').style.display = 'none';
-                    document.getElementById('backLoading').style.display = 'block';
+                    // Hide scanner, show loading
+                    const scannerContainer = document.getElementById('scannerContainer');
+                    const backLoading = document.getElementById('backLoading');
+                    const manualUpload = document.getElementById('manualUploadSection');
+                    
+                    scannerContainer.style.display = 'none';
+                    backLoading.style.display = 'block';
+                    manualUpload.classList.remove('visible');
                     
                     // Send to backend for barcode scanning
                     scanBarcode(base64);
@@ -1530,6 +1915,10 @@
 
         async function scanBarcode(base64Image) {
             const statusDiv = document.getElementById('scanStatus');
+            const backLoading = document.getElementById('backLoading');
+            const scannerContainer = document.getElementById('scannerContainer');
+            const manualUpload = document.getElementById('manualUploadSection');
+            
             statusDiv.style.display = 'none';
 
             try {
@@ -1540,12 +1929,20 @@
                 });
 
                 const result = await response.json();
-
-                document.getElementById('backLoading').style.display = 'none';
-                document.getElementById('backPreview').style.opacity = '1';
+                backLoading.style.display = 'none';
 
                 if (result.success) {
                     scannedData = result.data;
+                    
+                    // Show success in scanner container
+                    scannerContainer.style.display = 'block';
+                    scannerContainer.innerHTML = `
+                        <div class="scanner-success" style="display:flex; position:relative; height:200px;">
+                            <div class="checkmark">✓</div>
+                            <span style="font-size:18px; font-weight:600; color:var(--success);">ID Scanned Successfully!</span>
+                        </div>
+                    `;
+                    
                     statusDiv.style.display = 'block';
                     statusDiv.className = 'status-msg success';
                     statusDiv.textContent = '✓ ID scanned successfully!';
@@ -1554,8 +1951,9 @@
                     throw new Error(result.error);
                 }
             } catch (error) {
-                document.getElementById('backLoading').style.display = 'none';
-                document.getElementById('backPreview').style.opacity = '1';
+                backLoading.style.display = 'none';
+                scannerContainer.style.display = 'block';
+                manualUpload.classList.add('visible');
 
                 statusDiv.style.display = 'block';
                 statusDiv.className = 'status-msg error';

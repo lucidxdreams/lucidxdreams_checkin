@@ -5,6 +5,11 @@ In-store check-in system for Lucid x Dreams Medical Cannabis Dispensary. Custome
 ## Features
 
 - **Welcome Screen** - Business branding with logo and store information
+- **Smart ID Upload** - Streamlined mobile experience:
+  - Front of ID: Uses native device file picker (camera/gallery)
+  - Back of ID: Live barcode scanner with professional scanning animation
+  - Compact filename display after upload
+  - Automatic fallback to manual upload if scanner times out
 - **ID Verification** - Front photo + PDF417 barcode scanning from driver's license
 - **Medical Card Detection** - Different flows for existing vs new cardholders
 - **DC & Non-DC Residents** - Support for both DC residents and visitors
@@ -32,9 +37,20 @@ In-store check-in system for Lucid x Dreams Medical Cannabis Dispensary. Custome
 | Step | Has Existing Card (YES) | New Customer (NO) |
 |------|------------------------|-------------------|
 | 1 | Welcome → Check-in button | Welcome → Check-in button |
-| 2 | Upload ID (front + back barcode) | Upload ID (front + back barcode) |
+| 2 | Upload Front ID → Live barcode scan | Upload Front ID → Live barcode scan |
 | 3 | Enter Registration ID → Check-in | Verify info → Submit application |
 | 4 | Done | Enter Registration ID → Check-in |
+
+### ID Upload Experience
+
+1. **Front of ID**: Tap to upload - uses native mobile options (Photo Library, Take Photo, Choose File)
+2. **After Front Upload**: Shows compact filename display (e.g., "IMG_1234.jpeg ✓")
+3. **Back of ID Scanner**: Full-width professional scanner with:
+   - Animated green scanning line
+   - Corner bracket frame overlay
+   - Pulsing grid animation
+   - Status indicator with live feedback
+4. **Fallback**: After 15 seconds, manual upload option appears
 
 ## Tech Stack
 
