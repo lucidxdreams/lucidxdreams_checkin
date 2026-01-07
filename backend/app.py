@@ -5,14 +5,40 @@ Uses browser automation to submit to QuickBase
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from ocr_service import extract_id_data
-from barcode_service import extract_id_from_barcode
-from quickbase_browser_automation import QuickBaseFormAutomation
 import os
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Lazy imports for heavy dependencies to prevent startup timeouts
+_ocr_service = None
+_barcode_service = None
+_qb_automation_class = None
+
+def get_ocr_service():
+    """Lazy load OCR service"""
+    global _ocr_service
+    if _ocr_service is None:
+        from ocr_service import extract_id_data
+        _ocr_service = extract_id_data
+    return _ocr_service
+
+def get_barcode_service():
+    """Lazy load barcode service"""
+    global _barcode_service
+    if _barcode_service is None:
+        from barcode_service import extract_id_from_barcode
+        _barcode_service = extract_id_from_barcode
+    return _barcode_service
+
+def get_qb_automation_class():
+    """Lazy load QuickBase automation class"""
+    global _qb_automation_class
+    if _qb_automation_class is None:
+        from quickbase_browser_automation import QuickBaseFormAutomation
+        _qb_automation_class = QuickBaseFormAutomation
+    return _qb_automation_class
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -34,18 +60,18 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 # Frontend directory (HTML files are in docs folder)
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'docs')
 
-# Lazy initialization of browser automation to prevent startup crashes
-_qb_automation = None
+# Lazy initialization of browser automation instance
+_qb_automation_instance = None
 
 def get_qb_automation():
-    """Lazy load QuickBase automation to prevent startup crashes in Railway"""
-    global _qb_automation
-    if _qb_automation is None:
-        # Use headless=True in production (Railway), False for local development
+    """Lazy load QuickBase automation instance"""
+    global _qb_automation_instance
+    if _qb_automation_instance is None:
+        QuickBaseFormAutomation = get_qb_automation_class()
         is_production = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('PORT')
-        _qb_automation = QuickBaseFormAutomation(headless=bool(is_production))
+        _qb_automation_instance = QuickBaseFormAutomation(headless=bool(is_production))
         logger.info(f"QuickBase automation initialized (headless={bool(is_production)})")
-    return _qb_automation
+    return _qb_automation_instance
 
 
 @app.route('/health', methods=['GET'])
@@ -103,7 +129,8 @@ def extract_id():
         image_base64 = data.get('image')
         logger.info("Starting ID extraction...")
         
-        # Extract data using OCR
+        # Extract data using OCR (lazy-loaded)
+        extract_id_data = get_ocr_service()
         result = extract_id_data(image_base64)
         
         total_time = time.time() - request_start
@@ -182,7 +209,8 @@ def scan_barcode():
         image_base64 = data.get('image')
         logger.info("Starting barcode scanning...")
         
-        # Extract data using barcode scanner
+        # Extract data using barcode scanner (lazy-loaded)
+        extract_id_from_barcode = get_barcode_service()
         result = extract_id_from_barcode(image_base64)
         
         total_time = time.time() - request_start
@@ -247,9 +275,10 @@ def parse_barcode():
     """
     try:
         import time
-        from barcode_service import parse_aamva_barcode, format_date, detect_dc_from_barcode, get_random_dc_address
-        
         request_start = time.time()
+        
+        # Lazy import barcode parsing functions
+        from barcode_service import parse_aamva_barcode, format_date, detect_dc_from_barcode, get_random_dc_address
         
         data = request.json
         
