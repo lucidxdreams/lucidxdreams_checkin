@@ -220,22 +220,24 @@ https://yourusername.github.io/your-repo-name
 
 ### Step 3: Update Frontend Configuration
 
-Edit `frontend/index.html` and update:
+The frontend uses environment variables via `docs/env-config.js`. Edit this file:
 
 ```javascript
-// Backend API URL
-const API_BASE_URL = 'https://medical-card-submission-production.up.railway.app';
-
-// Supabase (from Part 4)
-const SUPABASE_URL = 'https://yourproject.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key-here';
+// docs/env-config.js
+window.CONFIG = {
+    SUPABASE_URL: 'https://yourproject.supabase.co',
+    SUPABASE_ANON_KEY: 'your-anon-key-here',
+    API_BASE_URL: 'https://your-backend.railway.app'
+};
 ```
+
+**Important:** Never hardcode keys directly in HTML files. The `env-config.js` file is loaded by both `index.html` and `admin.html`.
 
 Commit and push:
 
 ```bash
-git add frontend/index.html
-git commit -m "Update API URLs for production"
+git add docs/env-config.js
+git commit -m "Update environment config for production"
 git push
 ```
 
@@ -329,7 +331,7 @@ CREATE POLICY "Allow authenticated update" ON customers
    - **Project URL**: `https://xxxxx.supabase.co`
    - **anon public key**: `eyJhbGci...`
 
-Update these in `frontend/index.html` AND `frontend/admin.html`.
+Add these to `docs/env-config.js` (see Part 5).
 
 ---
 
@@ -337,22 +339,18 @@ Update these in `frontend/index.html` AND `frontend/admin.html`.
 
 ### Update Frontend with All URLs
 
-Edit `frontend/index.html`:
+Edit `docs/env-config.js` with your production values:
 
 ```javascript
-// ============================================
-// PRODUCTION CONFIGURATION
-// ============================================
-
-// Backend API (Railway)
-const API_BASE_URL = 'https://your-backend.railway.app';
-
-// Supabase Database
-const SUPABASE_URL = 'https://xxxxx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGci...your-key...';
+// docs/env-config.js
+window.CONFIG = {
+    SUPABASE_URL: 'https://xxxxx.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGci...your-key...',
+    API_BASE_URL: 'https://your-backend.railway.app'
+};
 ```
 
-Same for `frontend/admin.html`.
+This single file configures both `index.html` and `admin.html`.
 
 ### Update Backend CORS
 
