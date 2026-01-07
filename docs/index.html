@@ -1383,6 +1383,32 @@
                 transform: translateY(0);
             }
         }
+
+        @keyframes pulse-dot {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 82, 82, 0);
+            }
+        }
+
+        .scanner-status .dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ff5252;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse-dot 2s infinite;
+        }
     </style>
 </head>
 
@@ -1516,8 +1542,8 @@
                                 <span>📤</span>
                                 <span>Upload photo of back of ID</span>
                             </label>
-                            <input type="file" id="backIdInput" accept="image/*" capture="environment"
-                                style="display:none;" onchange="handleBackIdUpload(this)">
+                            <input type="file" id="backIdInput" accept="image/*" style="display:none;"
+                                onchange="handleBackIdUpload(this)">
                             <p style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px;">
                                 Tip: Hold ID flat, ensure barcode is fully visible and in focus
                             </p>
@@ -2055,9 +2081,21 @@
                 } catch (err) {
                     console.error('Scanner init error:', err);
                     stopLiveScanner();
+
+                    // Show friendly error
+                    scannerFrame.style.display = 'none';
                     scannerPlaceholder.style.display = 'flex';
-                    scannerPlaceholder.innerHTML = '<span class="icon">⚠️</span><span class="text">Camera error</span>';
+                    scannerPlaceholder.innerHTML = `
+                        <div class="scanner-error" style="text-align: center; color: #ff6b6b;">
+                            <span class="icon" style="font-size: 2rem;">⚠️</span>
+                            <div style="margin-top: 10px; font-weight: bold;">Camera/Scanner Error</div>
+                            <div style="font-size: 0.9em; opacity: 0.8;">${err.message || 'Could not start scanner'}</div>
+                        </div>
+                    `;
+
+                    // Force manual upload visibility
                     manualUpload.classList.add('visible');
+                    document.getElementById('manualUploadText').textContent = "Scanner failed. Please upload a photo instead.";
                 }
             }
 
