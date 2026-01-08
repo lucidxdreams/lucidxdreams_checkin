@@ -378,6 +378,48 @@ def parse_barcode():
         }), 500
 
 
+@app.route('/api/debug-form', methods=['POST'])
+def debug_form():
+    """
+    Debug endpoint - returns detailed logs without actually submitting
+    """
+    try:
+        data = request.json
+        
+        # Validate data
+        required_fields = ['firstName', 'lastName', 'dateOfBirth', 'street', 
+                          'zip', 'phoneNumber', 'email', 'idImageBase64']
+        missing = [f for f in required_fields if not data.get(f)]
+        
+        if missing:
+            return jsonify({
+                'success': False,
+                'error': f'Missing fields: {", ".join(missing)}',
+                'receivedData': {k: v[:50] + '...' if isinstance(v, str) and len(v) > 50 else v 
+                                for k, v in data.items() if k != 'idImageBase64'}
+            }), 400
+        
+        # Test browser launch only
+        try:
+            QuickBaseFormAutomation = get_qb_automation_class()
+            automation = QuickBaseFormAutomation(headless=True)
+            return jsonify({
+                'success': True,
+                'message': 'Backend is configured correctly',
+                'receivedData': {k: 'OK' for k in required_fields},
+                'residentType': data.get('residentType', 'dc')
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Browser initialization failed: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Debug endpoint error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/submit-application', methods=['POST'])
 def submit_application():
     """
