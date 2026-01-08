@@ -949,7 +949,8 @@
         }
 
         .card-checkbox-wrapper {
-            flex: 1;
+            flex: 0 1 auto;
+            min-width: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1664,7 +1665,7 @@
 
             <!-- STEP 3: Registration & Check-in -->
             <div id="step3" class="step-content">
-                <div style="text-align:center; margin-bottom:25px;">
+                <div id="step3Header" style="text-align:center; margin-bottom:25px;">
                     <div class="success-icon">✓</div>
                     <h3 style="color:#ffffff; margin-bottom:10px; font-size:20px; font-weight: 700;" id="step3Title">
                         Complete Your Check-in</h3>
@@ -1786,7 +1787,8 @@
                 const offset = circumference - (percent / 100) * circumference;
 
                 progressCircle.style.strokeDashoffset = offset;
-                if (progressText) progressText.textContent = `${percent}%`;
+                // Show step number instead of percentage
+                if (progressText) progressText.textContent = step;
                 if (progressLabel) progressLabel.textContent = label;
             }
 
@@ -2169,7 +2171,11 @@
                 const statusDiv = document.getElementById('scanStatus');
 
                 if (scannerFrame) scannerFrame.style.display = 'none';
-                if (scannerStatus) scannerStatus.style.display = 'none';
+                if (scannerStatus) {
+                    scannerStatus.style.display = 'block';
+                    const statusText = scannerStatus.querySelector('.scanner-status-text span:last-child');
+                    if (statusText) statusText.textContent = '✓ Barcode detected! Processing...';
+                }
                 if (scannerSuccess) {
                     scannerSuccess.style.display = 'flex';
                     scannerSuccess.querySelector('span:last-child').textContent = 'Processing...';
@@ -2588,11 +2594,13 @@
                     }
 
                     // Show success message in-frame
+                    document.getElementById('step3Header').style.display = 'none';
                     document.getElementById('checkinForm').style.display = 'none';
                     document.getElementById('checkinSuccess').style.display = 'block';
                 } catch (error) {
                     console.error('Error during check-in:', error);
                     // Still show success message even if save failed
+                    document.getElementById('step3Header').style.display = 'none';
                     document.getElementById('checkinForm').style.display = 'none';
                     document.getElementById('checkinSuccess').style.display = 'block';
                 }
@@ -2601,6 +2609,7 @@
             // Back navigation from Step 3
             function goBackFromStep3() {
                 // Reset Step 3 form
+                document.getElementById('step3Header').style.display = 'block';
                 document.getElementById('checkinForm').style.display = 'block';
                 document.getElementById('checkinSuccess').style.display = 'none';
                 document.getElementById('regId').value = '';
