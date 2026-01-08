@@ -161,6 +161,9 @@ class QuickBaseFormAutomation:
                     
                     # DC DMV Real ID (set to "Yes" as requested)
                     page.select_option('select[name="_fid_122"]', 'Yes')
+                    # Wait for QuickBase JavaScript to hide "Proof of Residency #1" and show "DC DMV Real ID" upload
+                    page.wait_for_timeout(1500)
+                    logger.info("DC DMV Real ID set to Yes, waiting for form update")
                     
                     # Date of Birth
                     page.fill('input[name="_fid_11"]', application_data['dateOfBirth'])
@@ -183,8 +186,9 @@ class QuickBaseFormAutomation:
                     try:
                         page.wait_for_selector('select[name="_fid_124"]', state='visible', timeout=2000)
                         page.select_option('select[name="_fid_124"]', 'Self certification')
-                        page.wait_for_timeout(500)
-                        logger.info("Self certification selected")
+                        # Wait for QuickBase JavaScript to hide recommendation fields (when self-cert is selected)
+                        page.wait_for_timeout(1500)
+                        logger.info("Self certification selected, waiting for form update")
                     except PlaywrightTimeout:
                         logger.warning("Certification type dropdown not visible")
                     
@@ -196,11 +200,12 @@ class QuickBaseFormAutomation:
                     page.set_input_files('input[name="_fid_121"]', temp_file_path)
                     logger.info("DC DMV Real ID uploaded")
                     
-                    # Reduced Fee
+                    # Reduced Fee (Always "No" as per user requirement)
                     try:
-                        reduced_fee_dropdown = page.query_selector('select.belowFPL')
-                        if reduced_fee_dropdown:
-                            page.select_option('select.belowFPL', 'No')
+                        page.wait_for_selector('select.belowFPL', state='visible', timeout=2000)
+                        page.select_option('select.belowFPL', 'No')
+                        page.wait_for_timeout(500)
+                        logger.info("Reduced fee set to 'No'")
                     except Exception as e:
                         logger.warning(f"Could not set reduced fee option: {e}")
                     
