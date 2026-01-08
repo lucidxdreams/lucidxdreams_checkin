@@ -351,6 +351,8 @@
         input[type="date"],
         select {
             width: 100%;
+            max-width: 100%;
+            width: 100%;
             padding: 14px 16px;
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: var(--radius-md);
@@ -794,6 +796,50 @@
             animation: pulse 1.5s ease-in-out infinite;
         }
 
+        /* Loading Spinner */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spinner 0.8s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn-loading::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--primary));
+            background-size: 200% 100%;
+            animation: shimmer 1.5s linear infinite;
+            opacity: 0.5;
+            z-index: -1;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
         @keyframes pulse {
 
             0%,
@@ -1155,19 +1201,6 @@
         }
 
         .action-btn {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            padding: 16px;
-            margin-bottom: 8px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-md);
-            font-size: 15px;
-            font-family: inherit;
-            color: #ffffff;
-            cursor: pointer;
-            text-align: left;
             font-weight: 500;
             transition: all 0.2s ease;
         }
@@ -2544,7 +2577,9 @@
                 const btn = document.getElementById('submitBtn');
                 const statusDiv = document.getElementById('submissionStatus');
                 btn.disabled = true;
-                btn.textContent = 'Processing...';
+                btn.classList.add('btn-loading');
+                const originalText = btn.textContent;
+                btn.setAttribute('data-original-text', originalText);
 
                 // Prepare form data for QuickBase submission
                 const reader = new FileReader();
@@ -2601,6 +2636,7 @@
                             }
 
                             // Move to step 3 and show registration ID form
+                            btn.classList.remove('btn-loading');
                             document.getElementById('step3Title').textContent = 'Application Submitted!';
                             document.getElementById('step3Subtitle').textContent = 'Your application has been submitted to DC ABCA. Please enter your registration details below to complete check-in.';
                             document.getElementById('checkinForm').style.display = 'block';
@@ -2615,8 +2651,9 @@
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'status-msg error';
                         statusDiv.textContent = '✗ Error submitting application: ' + error.message;
+                        btn.classList.remove('btn-loading');
                         btn.disabled = false;
-                        btn.textContent = 'Submit Application';
+                        btn.textContent = btn.getAttribute('data-original-text') || 'Submit Application';
                     }
                 };
                 reader.readAsDataURL(frontImageFile);

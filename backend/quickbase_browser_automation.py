@@ -20,7 +20,8 @@ class QuickBaseFormAutomation:
     
     DC_FORM_URL = "https://octo.quickbase.com/db/bscn22va8?a=dbpage&pageid=23"
     NONDC_FORM_URL = "https://octo.quickbase.com/db/bscn22va8?a=dbpage&pageID=39"
-    SUCCESS_URL = "https://octo.quickbase.com/db/bscn22va8?a=dbpage&pageID=18"
+    DC_SUCCESS_URL = "https://octo.quickbase.com/db/bscn22va8?a=dbpage&pageID=18"
+    NONDC_SUCCESS_URL = "https://octo.quickbase.com/db/bscn22va8?a=dbpage&pageID=40"
     
     # Time period mapping for Non-DC residents
     TIME_PERIOD_MAP = {
@@ -373,9 +374,12 @@ class QuickBaseFormAutomation:
                         except:
                             pass
                         
-                        # Check if we're on the success page (pageID=18)
-                        if 'pageID=18' in current_url or 'pageid=18' in current_url.lower():
-                            logger.info(f"Successfully redirected to success page: {current_url}")
+                        # Check if we're on success page (DC: pageID=18, Non-DC: pageID=40)
+                        is_success = ('pageID=18' in current_url or 'pageid=18' in current_url.lower() or
+                                     'pageID=40' in current_url or 'pageid=40' in current_url.lower())
+                        
+                        if is_success:
+                            logger.info(f"Successfully redirected to success page ({resident_type.upper()}): {current_url}")
                             
                             success_result = {
                                 'success': True,
