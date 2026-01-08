@@ -1515,6 +1515,20 @@
                         <button class="change-btn" onclick="changeFrontId()">Change</button>
                     </div>
 
+                    <!-- Back ID Upload (matches Front ID style) -->
+                    <div id="backIdSection" class="form-group" style="display:none;">
+                        <label>Back of ID</label>
+                        <label class="upload-area" id="backUploadArea" for="backIdInput">
+                            <div id="backPlaceholder">
+                                <span class="upload-icon">📷</span>
+                                <span class="upload-text">Tap to Upload Back of ID</span>
+                            </div>
+                            <img id="backPreview" class="id-preview" style="display:none;" />
+                        </label>
+                        <input type="file" id="backIdInput" accept="image/*" capture="environment"
+                            onchange="handleBackIdUpload(this)" style="display:none;" />
+                    </div>
+
                     <div class="loading-spinner"></div>
                     <p>Processing barcode...</p>
                 </div>
