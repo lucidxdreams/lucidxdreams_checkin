@@ -311,6 +311,8 @@
             min-width: 0;
             /* Fix grid overflow */
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         label {
@@ -1528,7 +1530,8 @@
                             of ID - Barcode Scan</label>
 
                         <!-- Professional Scanner Container -->
-                        <div id="scannerContainer" class="scanner-container">
+                        <!-- Professional Scanner Container (Hidden by default) -->
+                        <div id="scannerContainer" class="scanner-container" style="display:none;">
                             <div class="scanner-viewport">
                                 <!-- Scanner Placeholder -->
                                 <div id="scannerPlaceholder" class="scanner-placeholder">
@@ -1869,7 +1872,8 @@
                 updateProgress(1);
             }
 
-            function showStep(step) {
+            function showStep(stepInput) {
+                const step = parseInt(stepInput, 10);
                 document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
                 document.getElementById(`step${step}`).classList.add('active');
 
