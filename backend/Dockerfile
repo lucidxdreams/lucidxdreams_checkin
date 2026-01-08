@@ -9,7 +9,7 @@ ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PORT=5000
 
-# Install system dependencies for barcode scanning libraries
+# Install system dependencies for barcode scanning and Playwright
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libgl1 \
@@ -20,6 +20,25 @@ RUN apt-get update && \
         libzbar0 \
         gcc \
         g++ \
+        libnss3 \
+        libnspr4 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libdrm2 \
+        libxkbcommon0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libgbm1 \
+        libasound2 \
+        libatspi2.0-0 \
+        libwayland-client0 \
+        ca-certificates \
+        fonts-liberation \
+        wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,6 +50,9 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright Chromium browser
+RUN playwright install --with-deps chromium
 
 # Copy application code
 COPY . .

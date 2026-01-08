@@ -84,58 +84,79 @@
             transform: scale(1.02);
         }
 
-        /* Progress Indicator - Replaces Step Numbers */
+        /* Progress Indicator - 3 Circles */
         .progress-container {
             display: none;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        /* Individual Progress Step Circle */
+        .progress-step {
+            display: flex;
             flex-direction: column;
             align-items: center;
             gap: 8px;
-            margin-bottom: 16px;
         }
 
-        /* Animated Circular Progress Bar */
-        .circular-progress {
-            position: relative;
-            width: 64px;
-            height: 64px;
-        }
-
-        .circular-progress svg {
-            transform: rotate(-90deg);
-            width: 64px;
-            height: 64px;
-        }
-
-        .circular-progress .bg {
-            fill: none;
-            stroke: var(--border);
-            stroke-width: 4;
-        }
-
-        .circular-progress .progress {
-            fill: none;
-            stroke: url(#progressGradient);
-            stroke-width: 4;
-            stroke-linecap: round;
-            stroke-dasharray: 175.93;
-            stroke-dashoffset: 175.93;
-            transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .circular-progress .progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
+        .progress-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
             font-weight: 700;
-            color: var(--text-primary);
+            border: 3px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            transition: all 0.3s ease;
         }
 
-        .progress-label {
-            font-size: 14px;
+        .progress-circle.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: scale(1.1);
+        }
+
+        .progress-circle.completed {
+            border-color: var(--secondary);
+            background: var(--secondary);
+            color: white;
+        }
+
+        .progress-step-label {
+            font-size: 12px;
             font-weight: 600;
-            color: var(--text-secondary);
+            color: var(--text-muted);
+            text-align: center;
+            transition: color 0.3s ease;
+        }
+
+        .progress-step.active .progress-step-label {
+            color: var(--primary-light);
+        }
+
+        .progress-step.completed .progress-step-label {
+            color: var(--secondary-light);
+        }
+
+        /* Connection Line Between Circles */
+        .progress-line {
+            width: 40px;
+            height: 3px;
+            background: var(--border);
+            transition: background 0.3s ease;
+        }
+
+        .progress-line.completed {
+            background: linear-gradient(90deg, var(--secondary) 0%, var(--primary) 100%);
         }
 
         .form-wrapper {
@@ -309,10 +330,11 @@
 
         #extractedDataForm input[type="date"] {
             min-width: 0;
-            /* Fix grid overflow */
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
+            padding: 14px 16px;
+            font-size: 15px;
         }
 
         label {
@@ -1473,23 +1495,23 @@
                 </button>
             </div>
 
-            <!-- Progress Bar (replaces step indicators) -->
+            <!-- Progress Indicator with 3 Circles -->
             <div id="stepsContainer" style="display: none;">
                 <div class="progress-container" id="progressContainerInner" style="display: flex;">
-                    <div class="circular-progress">
-                        <svg viewBox="0 0 64 64">
-                            <defs>
-                                <linearGradient id="progressGradientInner" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" style="stop-color: var(--primary);" />
-                                    <stop offset="100%" style="stop-color: var(--secondary);" />
-                                </linearGradient>
-                            </defs>
-                            <circle class="bg" cx="32" cy="32" r="28"></circle>
-                            <circle class="progress" id="progressCircleInner" cx="32" cy="32" r="28"></circle>
-                        </svg>
-                        <span class="progress-text" id="progressTextInner">33%</span>
+                    <div class="progress-step" id="progressStep1">
+                        <div class="progress-circle" id="progressCircle1">1</div>
+                        <span class="progress-step-label">ID Scan</span>
                     </div>
-                    <span class="progress-label" id="progressLabelInner">ID Verification</span>
+                    <div class="progress-line" id="progressLine1"></div>
+                    <div class="progress-step" id="progressStep2">
+                        <div class="progress-circle" id="progressCircle2">2</div>
+                        <span class="progress-step-label">Verify</span>
+                    </div>
+                    <div class="progress-line" id="progressLine2"></div>
+                    <div class="progress-step" id="progressStep3">
+                        <div class="progress-circle" id="progressCircle3">3</div>
+                        <span class="progress-step-label">Complete</span>
+                    </div>
                 </div>
             </div>
 
@@ -1808,23 +1830,37 @@
             };
 
             function updateProgress(step) {
-                // Update inner progress bar (inside container)
-                const progressCircle = document.getElementById('progressCircleInner');
-                const progressText = document.getElementById('progressTextInner');
-                const progressLabel = document.getElementById('progressLabelInner');
+                // Update 3-circle progress indicator
+                for (let i = 1; i <= 3; i++) {
+                    const circle = document.getElementById(`progressCircle${i}`);
+                    const stepDiv = document.getElementById(`progressStep${i}`);
+                    const line = document.getElementById(`progressLine${i}`);
 
-                if (!progressCircle) return;
+                    if (!circle) continue;
 
-                const { percent, label } = PROGRESS_STEPS[step] || PROGRESS_STEPS[0];
+                    // Remove all states
+                    circle.classList.remove('active', 'completed');
+                    if (stepDiv) stepDiv.classList.remove('active', 'completed');
 
-                // Calculate stroke-dashoffset (circumference = 2 * π * r = 2 * 3.14159 * 28 ≈ 175.93)
-                const circumference = 175.93;
-                const offset = circumference - (percent / 100) * circumference;
+                    if (i === step) {
+                        // Current step - active
+                        circle.classList.add('active');
+                        if (stepDiv) stepDiv.classList.add('active');
+                    } else if (i < step) {
+                        // Previous steps - completed
+                        circle.classList.add('completed');
+                        if (stepDiv) stepDiv.classList.add('completed');
+                    }
 
-                progressCircle.style.strokeDashoffset = offset;
-                // Show step number instead of percentage
-                if (progressText) progressText.textContent = step;
-                if (progressLabel) progressLabel.textContent = label;
+                    // Update connecting lines
+                    if (line) {
+                        if (i < step) {
+                            line.classList.add('completed');
+                        } else {
+                            line.classList.remove('completed');
+                        }
+                    }
+                }
             }
 
             // Generate scanner grid cells with random animation delays
