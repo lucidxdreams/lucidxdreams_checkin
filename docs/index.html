@@ -303,12 +303,14 @@
             margin-bottom: 0;
             text-align: right;
             padding-right: 8px;
+            white-space: nowrap;
+            /* Prevent label wrapping */
         }
 
-        /* Ensure date input aligns properly in grid */
-        #extractedDataForm .form-group input[type="date"] {
+        #extractedDataForm input[type="date"] {
+            min-width: 0;
+            /* Fix grid overflow */
             width: 100%;
-            max-width: 100%;
         }
 
         label {
@@ -966,24 +968,28 @@
 
         .card-toggle-options {
             display: flex;
-            flex-direction: row;
             gap: 12px;
-            justify-content: center;
+            flex-wrap: nowrap;
+            /* Force single line */
         }
 
         .card-checkbox-wrapper {
             flex: 1;
-            max-width: 180px;
+            /* Split space equally */
+            min-width: 0;
+            /* Allow shrinking if needed */
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             cursor: pointer;
-            padding: 14px 20px;
+            padding: 14px 10px;
+            /* Reduced padding slightly */
             border-radius: var(--radius-md);
             border: 1px solid rgba(255, 255, 255, 0.15);
             transition: all 0.2s ease;
             background: rgba(255, 255, 255, 0.05);
+            white-space: nowrap;
         }
 
         .card-checkbox-wrapper:hover {
@@ -1515,601 +1521,659 @@
                         <button class="change-btn" onclick="changeFrontId()">Change</button>
                     </div>
 
-                    <!-- Back ID Upload (matches Front ID style) -->
-                    <div id="backIdSection" class="form-group" style="display:none;">
-                        <label>Back of ID</label>
-                        <label class="upload-area" id="backUploadArea" for="backIdInput">
-                            <div id="backPlaceholder">
-                                <span class="upload-icon">📷</span>
-                                <span class="upload-text">Tap to Upload Back of ID</span>
+                    <!-- Back ID Scanner Section (hidden until front is uploaded) -->
+                    <div id="backIdSection" style="display:none;">
+                        <label
+                            style="display:block; margin-bottom:12px; font-weight:600; color:var(--text-primary);">Back
+                            of ID - Barcode Scan</label>
+
+                        <!-- Professional Scanner Container -->
+                        <div id="scannerContainer" class="scanner-container">
+                            <div class="scanner-viewport">
+                                <!-- Scanner Placeholder -->
+                                <div id="scannerPlaceholder" class="scanner-placeholder">
+                                    <span class="icon">📷</span>
+                                    <span class="text">Initializing camera...</span>
+                                </div>
+
+                                <!-- Video element for camera feed (html5-qrcode mounts here) -->
+                                <div id="reader"></div>
+
+                                <!-- Scanner Frame Overlay -->
+                                <div class="scanner-frame" id="scannerFrame" style="display:none;">
+                                    <div class="scanner-corner top-left"></div>
+                                    <div class="scanner-corner top-right"></div>
+                                    <div class="scanner-corner bottom-left"></div>
+                                    <div class="scanner-corner bottom-right"></div>
+                                    <div class="scan-line"></div>
+                                    <div class="scanner-grid" id="scannerGrid"></div>
+                                </div>
+
+                                <!-- Scanner Status -->
+                                <div class="scanner-status" id="scannerStatus" style="display:none;">
+                                    <div class="scanner-status-text">
+                                        <span class="dot"></span>
+                                        <span>Scanning for barcode...</span>
+                                    </div>
+                                </div>
+
+                                <!-- Success State -->
+                                <div id="scannerSuccess" class="scanner-success" style="display:none;">
+                                    <div class="checkmark">✓</div>
+                                    <span style="font-size:18px; font-weight:600; color:var(--success);">Barcode
+                                        Scanned!</span>
+                                </div>
                             </div>
-                            <img id="backPreview" class="id-preview" style="display:none;" />
-                        </label>
-                        <input type="file" id="backIdInput" accept="image/*" capture="environment"
-                            onchange="handleBackIdUpload(this)" style="display:none;" />
+                        </div>
+
+                        <!-- Manual Upload Fallback -->
+                        <div id="manualUploadSection" class="manual-upload-section">
+                            <label class="manual-upload-btn" for="backIdInput">
+                                <span>📤</span>
+                                <span>Upload photo of back of ID</span>
+                            </label>
+                            <input type="file" id="backIdInput" accept="image/*" style="display:none;"
+                                onchange="handleBackIdUpload(this)">
+                            <p style="font-size:11px; color:var(--text-muted); text-align:center; margin-top:8px;">
+                                Tip: Hold ID flat, ensure barcode is fully visible and in focus
+                            </p>
+                        </div>
+
+                        <!-- Processing indicator -->
+                        <div id="backLoading" class="loading-indicator" style="display:none;">
+                            <div class="loading-spinner"></div>
+                            <p>Processing barcode...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="scanStatus" class="status-msg"></div>
+
+                <!-- Medical Card Yes/No Toggle -->
+                <div class="card-toggle-section">
+                    <label class="card-toggle-label">🏥 Do you have a Medical Cannabis Card?</label>
+                    <div class="card-toggle-options">
+                        <div class="card-checkbox-wrapper" id="cardYes" onclick="handleCardToggle('yes')">
+                            <div class="card-checkbox"></div>
+                            <span class="card-checkbox-label">Yes</span>
+                        </div>
+                        <div class="card-checkbox-wrapper" id="cardNo" onclick="handleCardToggle('no')">
+                            <div class="card-checkbox"></div>
+                            <span class="card-checkbox-label">No</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resident Type Selection (shown when NO is selected) -->
+                <div id="residentTypeSection" class="resident-type-section" style="display:none;">
+                    <h3 class="resident-type-title">📍 Apply for the Medical Cannabis Program as a:</h3>
+                    <div class="resident-options">
+                        <div class="resident-option" id="dcResident" onclick="selectResidentType('dc')">
+                            <span class="icon">🏛️</span>
+                            <div class="resident-option-text">DC Resident</div>
+                        </div>
+                        <div class="resident-option" id="nonDcResident" onclick="selectResidentType('nondc')">
+                            <span class="icon">🌎</span>
+                            <div class="resident-option-text">Non DC Resident</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="phone" placeholder="(202) 555-0123">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" placeholder="you@example.com">
+                </div>
+
+                <button class="btn" onclick="goToStep2()" id="step1Next">Next: Verify Info</button>
+            </div>
+
+            <!-- STEP 2: Verify & Consent (Only shown if NO card) -->
+            <div id="step2" class="step-content">
+                <h3 class="section-title"><span class="icon">📋</span> Verify Information</h3>
+
+                <div id="extractedDataForm">
+                    <div class="form-group"><label>First Name</label><input type="text" id="firstName"></div>
+                    <div class="form-group"><label>Last Name</label><input type="text" id="lastName"></div>
+                    <div class="form-group"><label>Date of Birth</label><input type="date" id="dob"></div>
+                    <div class="form-group"><label>Street Address</label><input type="text" id="street"></div>
+                    <div class="form-group"><label>City</label><input type="text" id="city"></div>
+                    <div class="form-group"><label>State</label><input type="text" id="state"></div>
+                    <div class="form-group"><label>ZIP Code</label><input type="text" id="zip"></div>
+                </div>
+
+                <!-- Time Period Selection (only for Non-DC residents) -->
+                <div id="timePeriodSection" style="display:none;">
+                    <div class="form-group">
+                        <label>⏱️ Time Period</label>
+                        <select id="timePeriod">
+                            <option value="3days">3 days ($10)</option>
+                            <option value="30days">30 days ($20)</option>
+                            <option value="90days">90 days ($50)</option>
+                            <option value="180days">180 days ($75)</option>
+                            <option value="365days">365 days ($100)</option>
+                        </select>
+                    </div>
+                    <div
+                        style="background:rgba(212, 160, 57, 0.1); border:1px solid rgba(212, 160, 57, 0.25); border-radius:10px; padding:15px; margin:15px 0; font-size:13px; color: rgba(255,255,255,0.7);">
+                        <p style="margin-bottom:10px;">• Lucid x Dreams provides a time-saving form completion service
+                            only, the above fees are charged by ABCA.</p>
+                        <p style="margin-bottom:10px;">• Upon submission, you will be sent an email with a payment link.
+                            The registration period begins with the payment date.</p>
+                        <p style="margin-bottom:0;">• Once payment is completed, you will receive an email that will
+                            serve as your Non Resident Medical Cannabis Patient Registration.</p>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="consentEmail" required>
+                        <label for="consentEmail">I consent to receive email notifications. <span
+                                style="color:red;">*</span></label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="consentAuth" required>
+                        <label for="consentAuth">I authorize submission of my cannabis application to DC ABCA on my
+                            behalf. <span style="color:red;">*</span></label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="consentLegal" required>
+                        <label for="consentLegal">I certify that I'm 21+, and I agree to <a href="terms.html"
+                                target="_blank">Terms & Conditions</a> and <a href="privacy.html"
+                                target="_blank">Privacy Policy</a>. <span style="color:red;">*</span></label>
+                    </div>
+                </div>
+
+                <div id="submissionStatus" class="status-msg"></div>
+                <button class="btn" onclick="submitApplication()" id="submitBtn">Submit Application</button>
+                <button class="btn btn-secondary" onclick="showStep(1)">← Back</button>
+            </div>
+
+            <!-- STEP 3: Registration & Check-in -->
+            <div id="step3" class="step-content">
+                <div id="step3Header" style="text-align:center; margin-bottom:25px;">
+                    <div class="success-icon">✓</div>
+                    <h3 style="color:#ffffff; margin-bottom:10px; font-size:20px; font-weight: 700;" id="step3Title">
+                        Complete Your Check-in</h3>
+                    <p style="font-size:14px; color:rgba(255,255,255,0.7); line-height:1.5;" id="step3Subtitle">Enter
+                        your medical cannabis registration details below.</p>
+                </div>
+
+                <div id="checkinForm">
+                    <div class="form-group">
+                        <label>Registration ID</label>
+                        <input type="text" id="regId" placeholder="Enter your registration ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Expiration Date</label>
+                        <input type="date" id="expDate">
                     </div>
 
-                    <div class="loading-spinner"></div>
-                    <p>Processing barcode...</p>
+                    <button class="btn" onclick="finishCheckin()" id="checkinBtn">✓ Check-in</button>
+                    <button class="btn btn-secondary" onclick="goBackFromStep3()" id="step3BackBtn"
+                        style="display:none;">← Back</button>
                 </div>
-            </div>
-        </div>
-        <div id="scanStatus" class="status-msg"></div>
 
-        <!-- Medical Card Yes/No Toggle -->
-        <div class="card-toggle-section">
-            <label class="card-toggle-label">🏥 Do you have a Medical Cannabis Card?</label>
-            <div class="card-toggle-options">
-                <div class="card-checkbox-wrapper" id="cardYes" onclick="handleCardToggle('yes')">
-                    <div class="card-checkbox"></div>
-                    <span class="card-checkbox-label">Yes</span>
-                </div>
-                <div class="card-checkbox-wrapper" id="cardNo" onclick="handleCardToggle('no')">
-                    <div class="card-checkbox"></div>
-                    <span class="card-checkbox-label">No</span>
+                <div id="checkinSuccess" style="display:none; text-align:center; padding:20px;">
+                    <div class="success-icon">✓</div>
+                    <h3 style="color:var(--primary-light); margin:20px 0; font-weight: 700;">Check-in Complete!</h3>
+                    <p style="color:rgba(255,255,255,0.7); line-height:1.6;">Thank you for checking in. Your
+                        registration has been recorded.</p>
                 </div>
             </div>
         </div>
 
-        <!-- Resident Type Selection (shown when NO is selected) -->
-        <div id="residentTypeSection" class="resident-type-section" style="display:none;">
-            <h3 class="resident-type-title">📍 Apply for the Medical Cannabis Program as a:</h3>
-            <div class="resident-options">
-                <div class="resident-option" id="dcResident" onclick="selectResidentType('dc')">
-                    <span class="icon">🏛️</span>
-                    <div class="resident-option-text">DC Resident</div>
+        <!-- Footer - Separated -->
+        <div class="footer-wrapper">
+            <footer>
+                <div class="footer-disclaimer">
+                    <strong>Disclaimer:</strong> Lucid x Dreams provides a time-saving form completion service that
+                    helps DC residents apply for medical cannabis cards through the DC Alcohol Beverage and Cannabis
+                    Administration (ABCA). We are NOT affiliated with, endorsed by, or connected to ABCA, Quickbase, or
+                    any other agency. We simply help you fill out and submit your application faster.
                 </div>
-                <div class="resident-option" id="nonDcResident" onclick="selectResidentType('nondc')">
-                    <span class="icon">🌎</span>
-                    <div class="resident-option-text">Non DC Resident</div>
+
+                <div class="footer-contact">
+                    <a href="mailto:help@lucidxdreams.com">help@lucidxdreams.com</a>
+                    <span>|</span>
+                    <a href="tel:+12026007610">(202) 600-7610</a>
                 </div>
-            </div>
-        </div>
 
-        <!-- Contact Info -->
-        <div class="form-group">
-            <label>Phone Number</label>
-            <input type="tel" id="phone" placeholder="(202) 555-0123">
-        </div>
-        <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="email" placeholder="you@example.com">
-        </div>
-
-        <button class="btn" onclick="goToStep2()" id="step1Next">Next: Verify Info</button>
-    </div>
-
-    <!-- STEP 2: Verify & Consent (Only shown if NO card) -->
-    <div id="step2" class="step-content">
-        <h3 class="section-title"><span class="icon">📋</span> Verify Information</h3>
-
-        <div id="extractedDataForm">
-            <div class="form-group"><label>First Name</label><input type="text" id="firstName"></div>
-            <div class="form-group"><label>Last Name</label><input type="text" id="lastName"></div>
-            <div class="form-group"><label>Date of Birth</label><input type="date" id="dob"></div>
-            <div class="form-group"><label>Street Address</label><input type="text" id="street"></div>
-            <div class="form-group"><label>City</label><input type="text" id="city"></div>
-            <div class="form-group"><label>State</label><input type="text" id="state"></div>
-            <div class="form-group"><label>ZIP Code</label><input type="text" id="zip"></div>
-        </div>
-
-        <!-- Time Period Selection (only for Non-DC residents) -->
-        <div id="timePeriodSection" style="display:none;">
-            <div class="form-group">
-                <label>⏱️ Time Period</label>
-                <select id="timePeriod">
-                    <option value="3days">3 days ($10)</option>
-                    <option value="30days">30 days ($20)</option>
-                    <option value="90days">90 days ($50)</option>
-                    <option value="180days">180 days ($75)</option>
-                    <option value="365days">365 days ($100)</option>
-                </select>
-            </div>
-            <div
-                style="background:rgba(212, 160, 57, 0.1); border:1px solid rgba(212, 160, 57, 0.25); border-radius:10px; padding:15px; margin:15px 0; font-size:13px; color: rgba(255,255,255,0.7);">
-                <p style="margin-bottom:10px;">• Lucid x Dreams provides a time-saving form completion service
-                    only, the above fees are charged by ABCA.</p>
-                <p style="margin-bottom:10px;">• Upon submission, you will be sent an email with a payment link.
-                    The registration period begins with the payment date.</p>
-                <p style="margin-bottom:0;">• Once payment is completed, you will receive an email that will
-                    serve as your Non Resident Medical Cannabis Patient Registration.</p>
-            </div>
-        </div>
-
-        <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-            <div class="checkbox-group">
-                <input type="checkbox" id="consentEmail" required>
-                <label for="consentEmail">I consent to receive email notifications. <span
-                        style="color:red;">*</span></label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="consentAuth" required>
-                <label for="consentAuth">I authorize submission of my cannabis application to DC ABCA on my
-                    behalf. <span style="color:red;">*</span></label>
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="consentLegal" required>
-                <label for="consentLegal">I certify that I'm 21+, and I agree to <a href="terms.html"
-                        target="_blank">Terms & Conditions</a> and <a href="privacy.html" target="_blank">Privacy
-                        Policy</a>. <span style="color:red;">*</span></label>
-            </div>
-        </div>
-
-        <div id="submissionStatus" class="status-msg"></div>
-        <button class="btn" onclick="submitApplication()" id="submitBtn">Submit Application</button>
-        <button class="btn btn-secondary" onclick="showStep(1)">← Back</button>
-    </div>
-
-    <!-- STEP 3: Registration & Check-in -->
-    <div id="step3" class="step-content">
-        <div id="step3Header" style="text-align:center; margin-bottom:25px;">
-            <div class="success-icon">✓</div>
-            <h3 style="color:#ffffff; margin-bottom:10px; font-size:20px; font-weight: 700;" id="step3Title">
-                Complete Your Check-in</h3>
-            <p style="font-size:14px; color:rgba(255,255,255,0.7); line-height:1.5;" id="step3Subtitle">Enter
-                your medical cannabis registration details below.</p>
-        </div>
-
-        <div id="checkinForm">
-            <div class="form-group">
-                <label>Registration ID</label>
-                <input type="text" id="regId" placeholder="Enter your registration ID">
-            </div>
-            <div class="form-group">
-                <label>Expiration Date</label>
-                <input type="date" id="expDate">
-            </div>
-
-            <button class="btn" onclick="finishCheckin()" id="checkinBtn">✓ Check-in</button>
-            <button class="btn btn-secondary" onclick="goBackFromStep3()" id="step3BackBtn" style="display:none;">←
-                Back</button>
-        </div>
-
-        <div id="checkinSuccess" style="display:none; text-align:center; padding:20px;">
-            <div class="success-icon">✓</div>
-            <h3 style="color:var(--primary-light); margin:20px 0; font-weight: 700;">Check-in Complete!</h3>
-            <p style="color:rgba(255,255,255,0.7); line-height:1.6;">Thank you for checking in. Your
-                registration has been recorded.</p>
-        </div>
-    </div>
-    </div>
-
-    <!-- Footer - Separated -->
-    <div class="footer-wrapper">
-        <footer>
-            <div class="footer-disclaimer">
-                <strong>Disclaimer:</strong> Lucid x Dreams provides a time-saving form completion service that
-                helps DC residents apply for medical cannabis cards through the DC Alcohol Beverage and Cannabis
-                Administration (ABCA). We are NOT affiliated with, endorsed by, or connected to ABCA, Quickbase, or
-                any other agency. We simply help you fill out and submit your application faster.
-            </div>
-
-            <div class="footer-contact">
-                <a href="mailto:help@lucidxdreams.com">help@lucidxdreams.com</a>
-                <span>|</span>
-                <a href="tel:+12026007610">(202) 600-7610</a>
-            </div>
-
-            <div class="footer-bottom">
-                <div class="copyright">© 2026 Lucid x Dreams. All rights reserved.</div>
-                <div class="links">
-                    <a href="terms.html">Terms of Service</a>
-                    <a href="privacy.html">Privacy Policy</a>
+                <div class="footer-bottom">
+                    <div class="copyright">© 2026 Lucid x Dreams. All rights reserved.</div>
+                    <div class="links">
+                        <a href="terms.html">Terms of Service</a>
+                        <a href="privacy.html">Privacy Policy</a>
+                    </div>
                 </div>
-            </div>
-        </footer>
-    </div>
+            </footer>
+        </div>
 
-    <!-- Environment Configuration (replace with actual values during deployment) -->
-    <script src="env-config.js"></script>
-    <!-- zxing-wasm library for high-speed PDF417 scanning -->
-    <script src="lib/zxing/zxing_reader.js"></script>
+        <!-- Environment Configuration (replace with actual values during deployment) -->
+        <script src="env-config.js"></script>
+        <!-- zxing-wasm library for high-speed PDF417 scanning -->
+        <script src="lib/zxing/zxing_reader.js"></script>
 
-    <script>
-        // ============================================
-        // CONFIGURATION - Set via environment or inline
-        // These values should be injected at build/deploy time
-        // ============================================
-        const CONFIG = {
-            // Supabase - leave empty to disable, or set via deployment environment
-            SUPABASE_URL: window.ENV_SUPABASE_URL || '',
-            SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || '',
-            // Backend API URL
-            API_BASE_URL: window.ENV_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5001' : '')
-        };
+        <script>
+            // ============================================
+            // CONFIGURATION - Set via environment or inline
+            // These values should be injected at build/deploy time
+            // ============================================
+            const CONFIG = {
+                // Supabase - leave empty to disable, or set via deployment environment
+                SUPABASE_URL: window.ENV_SUPABASE_URL || '',
+                SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || '',
+                // Backend API URL
+                API_BASE_URL: window.ENV_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5001' : '')
+            };
 
-        let supabaseClient = null;
-        try {
-            if (window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
-                supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-                console.log('Supabase client initialized');
+            let supabaseClient = null;
+            try {
+                if (window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY) {
+                    supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                    console.log('Supabase client initialized');
+                }
+            } catch (e) {
+                console.warn('Supabase not configured:', e);
             }
-        } catch (e) {
-            console.warn('Supabase not configured:', e);
-        }
 
-        // Backend API URL (for barcode scanning)
-        const API_BASE_URL = CONFIG.API_BASE_URL;
+            // Backend API URL (for barcode scanning)
+            const API_BASE_URL = CONFIG.API_BASE_URL;
 
-        let scannedData = {};
-        let frontImageFile = null;
-        let currentUploadType = null;
-        let customerRecord = null;
-        let hasExistingCard = null; // true = YES, false = NO
-        let residentType = null; // 'dc' or 'nondc'
-        let backIdScanned = false; // Track if back ID was successfully scanned and parsed
+            let scannedData = {};
+            let frontImageFile = null;
+            let currentUploadType = null;
+            let customerRecord = null;
+            let hasExistingCard = null; // true = YES, false = NO
+            let residentType = null; // 'dc' or 'nondc'
+            let backIdScanned = false; // Track if back ID was successfully scanned and parsed
 
-        // ============================================
-        // ANIMATED CIRCULAR PROGRESS BAR
-        // ============================================
-        const PROGRESS_STEPS = {
-            0: { percent: 0, label: 'Getting Started' },
-            1: { percent: 33, label: 'ID Verification' },
-            2: { percent: 66, label: 'Review Information' },
-            3: { percent: 100, label: 'Complete' }
-        };
+            // ============================================
+            // ANIMATED CIRCULAR PROGRESS BAR
+            // ============================================
+            const PROGRESS_STEPS = {
+                0: { percent: 0, label: 'Getting Started' },
+                1: { percent: 33, label: 'ID Verification' },
+                2: { percent: 66, label: 'Review Information' },
+                3: { percent: 100, label: 'Complete' }
+            };
 
-        function updateProgress(step) {
-            // Update inner progress bar (inside container)
-            const progressCircle = document.getElementById('progressCircleInner');
-            const progressText = document.getElementById('progressTextInner');
-            const progressLabel = document.getElementById('progressLabelInner');
+            function updateProgress(step) {
+                // Update inner progress bar (inside container)
+                const progressCircle = document.getElementById('progressCircleInner');
+                const progressText = document.getElementById('progressTextInner');
+                const progressLabel = document.getElementById('progressLabelInner');
 
-            if (!progressCircle) return;
+                if (!progressCircle) return;
 
-            const { percent, label } = PROGRESS_STEPS[step] || PROGRESS_STEPS[0];
+                const { percent, label } = PROGRESS_STEPS[step] || PROGRESS_STEPS[0];
 
-            // Calculate stroke-dashoffset (circumference = 2 * π * r = 2 * 3.14159 * 28 ≈ 175.93)
-            const circumference = 175.93;
-            const offset = circumference - (percent / 100) * circumference;
+                // Calculate stroke-dashoffset (circumference = 2 * π * r = 2 * 3.14159 * 28 ≈ 175.93)
+                const circumference = 175.93;
+                const offset = circumference - (percent / 100) * circumference;
 
-            progressCircle.style.strokeDashoffset = offset;
-            // Show step number instead of percentage
-            if (progressText) progressText.textContent = step;
-            if (progressLabel) progressLabel.textContent = label;
-        }
-
-        // Generate scanner grid cells with random animation delays
-        function initScannerGrid() {
-            const grid = document.getElementById('scannerGrid');
-            if (!grid) return;
-            grid.innerHTML = '';
-            for (let i = 0; i < 48; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'scanner-grid-cell';
-                cell.style.setProperty('--delay', Math.random() * 30);
-                grid.appendChild(cell);
+                progressCircle.style.strokeDashoffset = offset;
+                // Show step number instead of percentage
+                if (progressText) progressText.textContent = step;
+                if (progressLabel) progressLabel.textContent = label;
             }
-        }
 
-        // Change front ID (re-upload)
-        function changeFrontId() {
-            // Stop scanner if running
-            stopLiveScanner();
+            // Generate scanner grid cells with random animation delays
+            function initScannerGrid() {
+                const grid = document.getElementById('scannerGrid');
+                if (!grid) return;
+                grid.innerHTML = '';
+                for (let i = 0; i < 48; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'scanner-grid-cell';
+                    cell.style.setProperty('--delay', Math.random() * 30);
+                    grid.appendChild(cell);
+                }
+            }
 
-            // Reset UI
-            document.getElementById('frontIdUpload').style.display = 'block';
-            document.getElementById('frontIdCompact').classList.remove('visible');
-            document.getElementById('backIdSection').style.display = 'none';
-            document.getElementById('scanStatus').style.display = 'none';
+            // Change front ID (re-upload)
+            function changeFrontId() {
+                // Stop scanner if running
+                stopLiveScanner();
 
-            // Reset state
-            frontImageFile = null;
-            scannedData = {};
-            backIdScanned = false;
-        }
+                // Reset UI
+                document.getElementById('frontIdUpload').style.display = 'block';
+                document.getElementById('frontIdCompact').classList.remove('visible');
+                document.getElementById('backIdSection').style.display = 'none';
+                document.getElementById('scanStatus').style.display = 'none';
 
-        // Start check-in from welcome page
-        function startCheckin() {
-            console.log('startCheckin called');
-            const step0 = document.getElementById('step0');
-            const stepsContainer = document.getElementById('stepsContainer');
-            const step1 = document.getElementById('step1');
+                // Reset state
+                frontImageFile = null;
+                scannedData = {};
+                backIdScanned = false;
+            }
 
-            if (step0) step0.classList.remove('active');
-            if (stepsContainer) stepsContainer.style.display = 'block';
-            if (step1) step1.classList.add('active');
+            // Start check-in from welcome page
+            function startCheckin() {
+                console.log('startCheckin called');
+                const step0 = document.getElementById('step0');
+                const stepsContainer = document.getElementById('stepsContainer');
+                const step1 = document.getElementById('step1');
 
-            // Update progress bar
-            updateProgress(1);
-        }
+                if (step0) step0.classList.remove('active');
+                if (stepsContainer) stepsContainer.style.display = 'block';
+                if (step1) step1.classList.add('active');
 
-        function showStep(step) {
-            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-            document.getElementById(`step${step}`).classList.add('active');
+                // Update progress bar
+                updateProgress(1);
+            }
 
-            for (let i = 1; i <= 3; i++) {
-                const ind = document.getElementById(`step${i}-indicator`);
-                if (i === step) {
-                    ind.classList.add('active');
-                    ind.classList.remove('completed');
-                } else if (i < step) {
-                    ind.classList.remove('active');
-                    ind.classList.add('completed');
-                    ind.innerHTML = '✓';
+            function showStep(step) {
+                document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+                document.getElementById(`step${step}`).classList.add('active');
+
+                for (let i = 1; i <= 3; i++) {
+                    const ind = document.getElementById(`step${i}-indicator`);
+                    if (i === step) {
+                        ind.classList.add('active');
+                        ind.classList.remove('completed');
+                    } else if (i < step) {
+                        ind.classList.remove('active');
+                        ind.classList.add('completed');
+                        ind.innerHTML = '✓';
+                    } else {
+                        ind.classList.remove('active', 'completed');
+                        ind.innerHTML = i;
+                    }
+                }
+
+                // Update connecting lines
+                const line12 = document.getElementById('line1-2');
+                const line23 = document.getElementById('line2-3');
+                if (step >= 2) line12.classList.add('completed');
+                else line12.classList.remove('completed');
+                if (step >= 3) line23.classList.add('completed');
+                else line23.classList.remove('completed');
+
+                // Update circular progress bar
+                updateProgress(step);
+            }
+
+            // Medical Card Toggle Handler
+            function handleCardToggle(value) {
+                const yesBtn = document.getElementById('cardYes');
+                const noBtn = document.getElementById('cardNo');
+                const residentTypeSection = document.getElementById('residentTypeSection');
+
+                yesBtn.classList.remove('selected');
+                noBtn.classList.remove('selected');
+
+                if (value === 'yes') {
+                    yesBtn.classList.add('selected');
+                    hasExistingCard = true;
+                    residentTypeSection.style.display = 'none';
+                    residentType = null;
                 } else {
-                    ind.classList.remove('active', 'completed');
-                    ind.innerHTML = i;
+                    noBtn.classList.add('selected');
+                    hasExistingCard = false;
+                    residentTypeSection.style.display = 'block';
                 }
             }
 
-            // Update connecting lines
-            const line12 = document.getElementById('line1-2');
-            const line23 = document.getElementById('line2-3');
-            if (step >= 2) line12.classList.add('completed');
-            else line12.classList.remove('completed');
-            if (step >= 3) line23.classList.add('completed');
-            else line23.classList.remove('completed');
+            // Resident Type Selection
+            function selectResidentType(type) {
+                document.getElementById('dcResident').classList.remove('selected');
+                document.getElementById('nonDcResident').classList.remove('selected');
 
-            // Update circular progress bar
-            updateProgress(step);
-        }
-
-        // Medical Card Toggle Handler
-        function handleCardToggle(value) {
-            const yesBtn = document.getElementById('cardYes');
-            const noBtn = document.getElementById('cardNo');
-            const residentTypeSection = document.getElementById('residentTypeSection');
-
-            yesBtn.classList.remove('selected');
-            noBtn.classList.remove('selected');
-
-            if (value === 'yes') {
-                yesBtn.classList.add('selected');
-                hasExistingCard = true;
-                residentTypeSection.style.display = 'none';
-                residentType = null;
-            } else {
-                noBtn.classList.add('selected');
-                hasExistingCard = false;
-                residentTypeSection.style.display = 'block';
-            }
-        }
-
-        // Resident Type Selection
-        function selectResidentType(type) {
-            document.getElementById('dcResident').classList.remove('selected');
-            document.getElementById('nonDcResident').classList.remove('selected');
-
-            if (type === 'dc') {
-                document.getElementById('dcResident').classList.add('selected');
-                residentType = 'dc';
-            } else {
-                document.getElementById('nonDcResident').classList.add('selected');
-                residentType = 'nondc';
-            }
-
-            console.log('Resident type selected:', residentType);
-        }
-
-        // ============================================
-        // LIVE BARCODE SCANNER - zxing-wasm (WebAssembly)
-        // High-performance PDF417 scanning
-        // ============================================
-        let zxingReader = null;
-        let scannerTimeout = null;
-        let videoStream = null;
-        let isScanning = false;
-        const SCANNER_TIMEOUT_MS = 10000; // 10 seconds timeout
-
-        // Detect iOS/Safari for specific handling if needed
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        // Handle Front ID Upload (direct file input)
-        function handleFrontIdUpload(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    frontImageFile = file;
-                    // Hide upload area, show compact display
-                    document.getElementById('frontIdUpload').style.display = 'none';
-                    document.getElementById('frontFileName').textContent = file.name;
-                    document.getElementById('frontIdCompact').classList.add('visible');
-                    // Show Back ID section
-                    showBackIdSection();
-                };
-                reader.readAsDataURL(file);
-                input.value = '';
-            }
-        }
-
-        function showBackIdSection() {
-            const backIdSection = document.getElementById('backIdSection');
-            backIdSection.style.display = 'block';
-            initScannerGrid();
-            startLiveScanner();
-        }
-
-        async function getZXingReader() {
-            if (zxingReader) return zxingReader;
-
-            try {
-                // Robust check: depending on the library version/build, it might be ZXingWasmReader or ZXingWASM
-                const ZXingModule = window.ZXingWasmReader || window.ZXingWASM;
-
-                if (!ZXingModule) {
-                    throw new Error('ZXing library not loaded. Check internet connection.');
+                if (type === 'dc') {
+                    document.getElementById('dcResident').classList.add('selected');
+                    residentType = 'dc';
+                } else {
+                    document.getElementById('nonDcResident').classList.add('selected');
+                    residentType = 'nondc';
                 }
 
-                // Configure for PDF417 using verified CDN for the WASM file
-                // This ensures the heavy binary loads even if local server has MIME issues
-                const readerModule = await ZXingModule.getZXingModule({
-                    locateFile: (path, prefix) => {
-                        if (path.endsWith('.wasm')) {
-                            // Proven working URL for the WASM binary or local file if correctly served
-                            // Using the CDN ensures it works regardless of local server config
-                            return `https://unpkg.com/zxing-wasm@1.2.9/dist/reader/zxing_reader.wasm`;
-                        }
-                        return prefix + path;
-                    }
-                });
-
-                zxingReader = readerModule;
-                return readerModule;
-            } catch (err) {
-                console.error('Failed to init ZXing:', err);
-                throw err; // Propagate error to show UI message
+                console.log('Resident type selected:', residentType);
             }
-        }
 
-        async function startLiveScanner() {
-            const scannerPlaceholder = document.getElementById('scannerPlaceholder');
-            const readerDiv = document.getElementById('reader');
-            const scannerFrame = document.getElementById('scannerFrame');
-            const scannerStatus = document.getElementById('scannerStatus');
-            const manualUpload = document.getElementById('manualUploadSection');
+            // ============================================
+            // LIVE BARCODE SCANNER - zxing-wasm (WebAssembly)
+            // High-performance PDF417 scanning
+            // ============================================
+            let zxingReader = null;
+            let scannerTimeout = null;
+            let videoStream = null;
+            let isScanning = false;
+            const SCANNER_TIMEOUT_MS = 10000; // 10 seconds timeout
 
-            console.log('Starting zxing-wasm scanner...');
+            // Detect iOS/Safari for specific handling if needed
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-            // UI Setup
-            scannerPlaceholder.style.display = 'none';
-            readerDiv.style.display = 'block';
-            scannerFrame.style.display = 'block';
-            scannerStatus.style.display = 'block';
-            manualUpload.classList.remove('visible');
+            // Handle Front ID Upload (direct file input)
+            function handleFrontIdUpload(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        frontImageFile = file;
+                        // Hide upload area, show compact display
+                        document.getElementById('frontIdUpload').style.display = 'none';
+                        document.getElementById('frontFileName').textContent = file.name;
+                        document.getElementById('frontIdCompact').classList.add('visible');
+                        // Show Back ID section
+                        showBackIdSection();
+                    };
+                    reader.readAsDataURL(file);
+                    input.value = '';
+                }
+            }
 
-            // Create/Reset Video Element
-            readerDiv.innerHTML = '';
-            const video = document.createElement('video');
-            video.setAttribute('playsinline', '');
-            video.setAttribute('autoplay', '');
-            video.setAttribute('muted', '');
-            video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
-            readerDiv.appendChild(video);
+            function showBackIdSection() {
+                const backIdSection = document.getElementById('backIdSection');
+                backIdSection.style.display = 'block';
+                // initScannerGrid();
+                // startLiveScanner(); 
 
-            try {
-                // 1. Get Camera
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        focusMode: { ideal: 'continuous' }
-                    }
-                };
+                // Show Manual Upload Default (Live Scanner Disabled per user request)
+                document.getElementById('scannerContainer').style.display = 'none';
+                document.getElementById('manualUploadSection').classList.add('visible');
+
+                // Update Manual Upload UI to look like a primary action
+                const manualSection = document.getElementById('manualUploadSection');
+                if (manualSection) {
+                    manualSection.style.marginTop = '0';
+                    manualSection.style.opacity = '1';
+                    manualSection.style.visibility = 'visible';
+                }
+            }
+
+            async function getZXingReader() {
+                if (zxingReader) return zxingReader;
 
                 try {
-                    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-                } catch (err) {
-                    // Fallback to simple limits
-                    videoStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: 'environment' }
-                    });
-                }
+                    // Robust check: depending on the library version/build, it might be ZXingWasmReader or ZXingWASM
+                    const ZXingModule = window.ZXingWasmReader || window.ZXingWASM;
 
-                video.srcObject = videoStream;
-                await video.play();
+                    if (!ZXingModule) {
+                        throw new Error('ZXing library not loaded. Check internet connection.');
+                    }
 
-                // 2. Initialize Scanner Engine (Native vs WASM)
-                let nativeDetector = null;
-                let useNative = false;
-
-                // CHECK FOR NATIVE SUPPORT
-                if ('BarcodeDetector' in window) {
-                    try {
-                        const formats = await window.BarcodeDetector.getSupportedFormats();
-                        if (formats.includes('pdf417')) {
-                            nativeDetector = new window.BarcodeDetector({ formats: ['pdf417'] });
-                            useNative = true;
-                            console.log('Using Native BarcodeDetector (Hardware Accelerated)');
+                    // Configure for PDF417 using verified CDN for the WASM file
+                    // This ensures the heavy binary loads even if local server has MIME issues
+                    const readerModule = await ZXingModule.getZXingModule({
+                        locateFile: (path, prefix) => {
+                            if (path.endsWith('.wasm')) {
+                                // Proven working URL for the WASM binary or local file if correctly served
+                                // Using the CDN ensures it works regardless of local server config
+                                return `https://unpkg.com/zxing-wasm@1.2.9/dist/reader/zxing_reader.wasm`;
+                            }
+                            return prefix + path;
                         }
-                    } catch (e) {
-                        console.warn('Native BarcodeDetector failed init, falling back to WASM', e);
-                    }
+                    });
+
+                    zxingReader = readerModule;
+                    return readerModule;
+                } catch (err) {
+                    console.error('Failed to init ZXing:', err);
+                    throw err; // Propagate error to show UI message
                 }
+            }
 
-                // Fallback to WASM if native not available
-                let wasmReader = null;
-                if (!useNative) {
-                    wasmReader = await getZXingReader();
-                    if (!wasmReader) throw new Error('Could not load barcode reader engine');
-                    console.log('Using WASM ZXing Reader');
-                }
+            async function startLiveScanner() {
+                const scannerPlaceholder = document.getElementById('scannerPlaceholder');
+                const readerDiv = document.getElementById('reader');
+                const scannerFrame = document.getElementById('scannerFrame');
+                const scannerStatus = document.getElementById('scannerStatus');
+                const manualUpload = document.getElementById('manualUploadSection');
 
-                isScanning = true;
+                console.log('Starting zxing-wasm scanner...');
 
-                // 3. Scan Loop
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                // UI Setup
+                scannerPlaceholder.style.display = 'none';
+                readerDiv.style.display = 'block';
+                scannerFrame.style.display = 'block';
+                scannerStatus.style.display = 'block';
+                manualUpload.classList.remove('visible');
 
-                const scanFrame = async () => {
-                    if (!isScanning) return;
+                // Create/Reset Video Element
+                readerDiv.innerHTML = '';
+                const video = document.createElement('video');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('autoplay', '');
+                video.setAttribute('muted', '');
+                video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+                readerDiv.appendChild(video);
 
-                    if (video.videoWidth === 0) {
-                        requestAnimationFrame(scanFrame);
-                        return;
-                    }
-
-                    // Set canvas size
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
+                try {
+                    // 1. Get Camera
+                    const constraints = {
+                        video: {
+                            facingMode: { ideal: 'environment' },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                            focusMode: { ideal: 'continuous' }
+                        }
+                    };
 
                     try {
-                        if (useNative) {
-                            // --- NATIVE SCANNING PATH ---
-                            try {
-                                const barcodes = await nativeDetector.detect(video);
-                                if (barcodes.length > 0) {
-                                    const result = barcodes[0];
-                                    if (result.rawValue && result.rawValue.length > 50) {
-                                        console.log('Native Scanner detected:', result.rawValue.substring(0, 20) + '...');
-                                        onBarcodeScanSuccess(result.rawValue);
+                        videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (err) {
+                        // Fallback to simple limits
+                        videoStream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: 'environment' }
+                        });
+                    }
+
+                    video.srcObject = videoStream;
+                    await video.play();
+
+                    // 2. Initialize Scanner Engine (Native vs WASM)
+                    let nativeDetector = null;
+                    let useNative = false;
+
+                    // CHECK FOR NATIVE SUPPORT
+                    if ('BarcodeDetector' in window) {
+                        try {
+                            const formats = await window.BarcodeDetector.getSupportedFormats();
+                            if (formats.includes('pdf417')) {
+                                nativeDetector = new window.BarcodeDetector({ formats: ['pdf417'] });
+                                useNative = true;
+                                console.log('Using Native BarcodeDetector (Hardware Accelerated)');
+                            }
+                        } catch (e) {
+                            console.warn('Native BarcodeDetector failed init, falling back to WASM', e);
+                        }
+                    }
+
+                    // Fallback to WASM if native not available
+                    let wasmReader = null;
+                    if (!useNative) {
+                        wasmReader = await getZXingReader();
+                        if (!wasmReader) throw new Error('Could not load barcode reader engine');
+                        console.log('Using WASM ZXing Reader');
+                    }
+
+                    isScanning = true;
+
+                    // 3. Scan Loop
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+                    const scanFrame = async () => {
+                        if (!isScanning) return;
+
+                        if (video.videoWidth === 0) {
+                            requestAnimationFrame(scanFrame);
+                            return;
+                        }
+
+                        // Set canvas size
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+
+                        try {
+                            if (useNative) {
+                                // --- NATIVE SCANNING PATH ---
+                                try {
+                                    const barcodes = await nativeDetector.detect(video);
+                                    if (barcodes.length > 0) {
+                                        const result = barcodes[0];
+                                        if (result.rawValue && result.rawValue.length > 50) {
+                                            console.log('Native Scanner detected:', result.rawValue.substring(0, 20) + '...');
+                                            onBarcodeScanSuccess(result.rawValue);
+                                            return; // Stop loop
+                                        }
+                                    }
+                                } catch (err) {
+                                    // Native detection error, continue loop
+                                }
+                            } else {
+                                // --- WASM SCANNING PATH ---
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                                // Read PDF417 using cached reader
+                                const results = await wasmReader.readBarcodesFromImageData(imageData, {
+                                    formats: ['PDF417'],
+                                    tryHarder: true,
+                                    tryRotate: true
+                                });
+
+                                if (results && results.length > 0) {
+                                    const result = results[0];
+                                    if (result.text && result.text.length > 50) {
+                                        console.log('ZXing detected:', result.text.substring(0, 20) + '...');
+                                        onBarcodeScanSuccess(result.text);
                                         return; // Stop loop
                                     }
                                 }
-                            } catch (err) {
-                                // Native detection error, continue loop
                             }
-                        } else {
-                            // --- WASM SCANNING PATH ---
-                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-                            // Read PDF417 using cached reader
-                            const results = await wasmReader.readBarcodesFromImageData(imageData, {
-                                formats: ['PDF417'],
-                                tryHarder: true,
-                                tryRotate: true
-                            });
-
-                            if (results && results.length > 0) {
-                                const result = results[0];
-                                if (result.text && result.text.length > 50) {
-                                    console.log('ZXing detected:', result.text.substring(0, 20) + '...');
-                                    onBarcodeScanSuccess(result.text);
-                                    return; // Stop loop
-                                }
-                            }
+                        } catch (e) {
+                            // Ignore frame errors
                         }
-                    } catch (e) {
-                        // Ignore frame errors
-                    }
 
-                    if (isScanning) requestAnimationFrame(scanFrame);
-                };
+                        if (isScanning) requestAnimationFrame(scanFrame);
+                    };
 
-                // Start Loop
-                scanFrame();
+                    // Start Loop
+                    scanFrame();
 
-                // Timeout Handler for Manual Option
-                scannerTimeout = setTimeout(() => {
-                    if (isScanning) {
-                        manualUpload.classList.add('visible');
-                        const statusText = document.querySelector('.scanner-status-text span:last-child');
-                        if (statusText) statusText.textContent = 'Hold steady... or upload photo below';
-                    }
-                }, SCANNER_TIMEOUT_MS);
+                    // Timeout Handler for Manual Option
+                    scannerTimeout = setTimeout(() => {
+                        if (isScanning) {
+                            manualUpload.classList.add('visible');
+                            const statusText = document.querySelector('.scanner-status-text span:last-child');
+                            if (statusText) statusText.textContent = 'Hold steady... or upload photo below';
+                        }
+                    }, SCANNER_TIMEOUT_MS);
 
-            } catch (err) {
-                console.error('Scanner init error:', err);
-                stopLiveScanner();
+                } catch (err) {
+                    console.error('Scanner init error:', err);
+                    stopLiveScanner();
 
-                // Show friendly error
-                scannerFrame.style.display = 'none';
-                scannerPlaceholder.style.display = 'flex';
-                scannerPlaceholder.innerHTML = `
+                    // Show friendly error
+                    scannerFrame.style.display = 'none';
+                    scannerPlaceholder.style.display = 'flex';
+                    scannerPlaceholder.innerHTML = `
                         <div class="scanner-error" style="text-align: center; color: #ff6b6b;">
                             <span class="icon" style="font-size: 2rem;">⚠️</span>
                             <div style="margin-top: 10px; font-weight: bold;">Camera/Scanner Error</div>
@@ -2117,493 +2181,493 @@
                         </div>
                     `;
 
-                // Force manual upload visibility
-                manualUpload.classList.add('visible');
-                document.getElementById('manualUploadText').textContent = "Scanner failed. Please upload a photo instead.";
-            }
-        }
-
-        function stopLiveScanner() {
-            isScanning = false;
-            if (scannerTimeout) clearTimeout(scannerTimeout);
-
-            if (videoStream) {
-                videoStream.getTracks().forEach(t => t.stop());
-                videoStream = null;
-            }
-
-            // Clean up video element
-            const readerDiv = document.getElementById('reader');
-            if (readerDiv) readerDiv.innerHTML = '';
-        }
-
-        // Barcode scan success
-        async function onBarcodeScanSuccess(decodedText) {
-            stopLiveScanner();
-
-            // UI Updates
-            const scannerFrame = document.getElementById('scannerFrame');
-            const scannerStatus = document.getElementById('scannerStatus');
-            const scannerSuccess = document.getElementById('scannerSuccess');
-            const manualUpload = document.getElementById('manualUploadSection');
-            const statusDiv = document.getElementById('scanStatus');
-
-            if (scannerFrame) scannerFrame.style.display = 'none';
-            if (scannerStatus) {
-                scannerStatus.style.display = 'block';
-                const statusText = scannerStatus.querySelector('.scanner-status-text span:last-child');
-                if (statusText) statusText.textContent = '✓ Barcode detected! Processing...';
-            }
-            if (scannerSuccess) {
-                scannerSuccess.style.display = 'flex';
-                scannerSuccess.querySelector('span:last-child').textContent = 'Processing...';
-            }
-            if (manualUpload) manualUpload.classList.remove('visible');
-
-            // Send to backend
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/parse-barcode`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcodeText: decodedText })
-                });
-
-                const result = await response.json();
-
-                if (result.success && result.data && result.data.firstName) {
-                    scannedData = result.data;
-                    backIdScanned = true;
-
-                    if (statusDiv) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.className = 'status-msg success';
-                        statusDiv.textContent = '✓ ID scanned successfully!';
-                    }
-                    if (scannerSuccess) {
-                        scannerSuccess.querySelector('span:last-child').textContent = 'Complete!';
-                    }
-
-                    populateForm(scannedData);
-                } else {
-                    throw new Error(result.error || 'Parsing failed');
-                }
-            } catch (error) {
-                console.error(error);
-                backIdScanned = false;
-                if (scannerSuccess) scannerSuccess.style.display = 'none';
-                if (statusDiv) {
-                    statusDiv.style.display = 'block';
-                    statusDiv.className = 'status-msg error';
-                    statusDiv.innerHTML = '✗ Parsed failed. <button onclick="retryScanner()">Retry</button>';
-                }
-                if (manualUpload) manualUpload.classList.add('visible');
-            }
-        }
-
-        function retryScanner() {
-            const scannerContainer = document.getElementById('scannerContainer');
-
-            // Reset UI HTML structure if needed
-            if (scannerContainer) {
-                scannerContainer.style.display = 'block';
-                const successDiv = document.getElementById('scannerSuccess');
-                if (successDiv) successDiv.style.display = 'none';
-            }
-
-            const statusDiv = document.getElementById('scanStatus');
-            if (statusDiv) statusDiv.style.display = 'none';
-
-            startLiveScanner();
-        }
-
-        // Manual Upload Fallback
-        function handleBackIdUpload(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-
-                // Client-side Resize to prevent massive payloads (Fixes JSON errors)
-                const img = new Image();
-                img.onload = function () {
-                    const MAX_WIDTH = 1200; // Sufficient for barcode reading
-                    const MAX_HEIGHT = 1200;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    // Send compressed JPEG
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
-                    stopLiveScanner();
-
-                    // Show processing UI
-                    document.getElementById('scannerContainer').style.display = 'none';
-                    document.getElementById('backLoading').style.display = 'block';
-                    document.getElementById('manualUploadSection').classList.remove('visible');
-
-                    scanBarcode(dataUrl);
-                };
-
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-                input.value = '';
-            }
-        }
-
-        async function scanBarcode(base64Image) {
-            const statusDiv = document.getElementById('scanStatus');
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/scan-barcode`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: base64Image })
-                });
-
-                const result = await response.json();
-                document.getElementById('backLoading').style.display = 'none';
-                document.getElementById('scannerContainer').style.display = 'block';
-
-                if (result.success) {
-                    onBarcodeScanSuccessLogic(result.data); // Reuse success logic
-                } else {
-                    throw new Error(result.error);
-                }
-            } catch (e) {
-                document.getElementById('backLoading').style.display = 'none';
-                document.getElementById('scannerContainer').style.display = 'block';
-                document.getElementById('manualUploadSection').classList.add('visible');
-                if (statusDiv) {
-                    statusDiv.style.display = 'block';
-                    statusDiv.className = 'status-msg error';
-                    statusDiv.innerHTML = '✗ Scan failed. Try again.';
+                    // Force manual upload visibility
+                    manualUpload.classList.add('visible');
+                    document.getElementById('manualUploadText').textContent = "Scanner failed. Please upload a photo instead.";
                 }
             }
-        }
 
-        // Helper to reuse success logic for manual upload
-        function onBarcodeScanSuccessLogic(data) {
-            scannedData = data;
-            backIdScanned = true;
+            function stopLiveScanner() {
+                isScanning = false;
+                if (scannerTimeout) clearTimeout(scannerTimeout);
 
-            const scannerSuccess = document.getElementById('scannerSuccess');
-            if (scannerSuccess) {
-                scannerSuccess.style.display = 'flex';
-                scannerSuccess.querySelector('span:last-child').textContent = 'ID Scanned Successfully!';
-            }
-
-            const statusDiv = document.getElementById('scanStatus');
-            if (statusDiv) {
-                statusDiv.style.display = 'block';
-                statusDiv.className = 'status-msg success';
-                statusDiv.textContent = '✓ ID scanned successfully!';
-            }
-
-            populateForm(scannedData);
-        }
-
-
-        function populateForm(data) {
-            // Only populate name and DOB initially - address will be populated in Step 2 based on resident type
-            if (data.firstName) document.getElementById('firstName').value = data.firstName;
-            if (data.lastName) document.getElementById('lastName').value = data.lastName;
-            if (data.dateOfBirth) document.getElementById('dob').value = data.dateOfBirth;
-            // Don't populate address here - it will be populated in goToStep2() based on resident type
-        }
-
-        // Populate address fields based on resident type
-        function populateAddressFields() {
-            console.log('populateAddressFields called');
-            console.log('residentType:', residentType);
-            console.log('scannedData:', scannedData);
-
-            // For Non-DC residents, use actual address if available
-            if (residentType === 'nondc' && scannedData.actualAddress) {
-                console.log('Using ACTUAL address for Non-DC resident');
-                const actual = scannedData.actualAddress;
-                if (actual.street) document.getElementById('street').value = actual.street;
-                if (actual.city) document.getElementById('city').value = actual.city;
-                if (actual.state) document.getElementById('state').value = actual.state;
-                if (actual.zip) document.getElementById('zip').value = actual.zip;
-            } else {
-                // For DC residents or if no actual address, use default scannedData address
-                console.log('Using default (DC) address');
-                if (scannedData.street) document.getElementById('street').value = scannedData.street;
-                if (scannedData.city) document.getElementById('city').value = scannedData.city;
-                if (scannedData.state) document.getElementById('state').value = scannedData.state;
-                if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
-            }
-        }
-
-        // Switch address based on resident type selection
-        function switchAddressForResidentType() {
-            console.log('switchAddressForResidentType called');
-            console.log('residentType:', residentType);
-            console.log('scannedData:', scannedData);
-            console.log('scannedData.actualAddress:', scannedData.actualAddress);
-
-            if (!scannedData.actualAddress) {
-                console.log('No actualAddress available - using default address');
-                return; // No actual address available (DC ID or no scan yet)
-            }
-
-            if (residentType === 'nondc') {
-                console.log('Switching to ACTUAL address for Non-DC resident');
-                // Use actual address from ID for Non-DC residents
-                const actual = scannedData.actualAddress;
-                if (actual.street) {
-                    document.getElementById('street').value = actual.street;
-                    console.log('Set street to:', actual.street);
-                }
-                if (actual.city) {
-                    document.getElementById('city').value = actual.city;
-                    console.log('Set city to:', actual.city);
-                }
-                if (actual.state) {
-                    document.getElementById('state').value = actual.state;
-                    console.log('Set state to:', actual.state);
-                }
-                if (actual.zip) {
-                    document.getElementById('zip').value = actual.zip;
-                    console.log('Set zip to:', actual.zip);
-                }
-            } else if (residentType === 'dc') {
-                console.log('Switching to DC address for DC resident');
-                // Use DC address (already populated from scannedData)
-                if (scannedData.street) document.getElementById('street').value = scannedData.street;
-                if (scannedData.city) document.getElementById('city').value = scannedData.city;
-                if (scannedData.state) document.getElementById('state').value = scannedData.state;
-                if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
-            }
-        }
-
-        function goToStep2() {
-            const phone = document.getElementById('phone').value;
-            const email = document.getElementById('email').value;
-
-            if (!frontImageFile) return alert('Please upload Front of ID.');
-            if (!backIdScanned) return alert('Please scan Back of ID.');
-            if (hasExistingCard === null) return alert('Please indicate if you have a Medical Cannabis Card.');
-            if (!phone || !email) return alert('Please enter contact info.');
-
-            // If NO card selected, require resident type selection
-            if (hasExistingCard === false && !residentType) {
-                return alert('Please select DC Resident or Non DC Resident.');
-            }
-
-            // Set default expiration date (3 months from now)
-            const today = new Date();
-            const exp = new Date(today.setMonth(today.getMonth() + 3));
-            document.getElementById('expDate').value = exp.toISOString().split('T')[0];
-
-            if (hasExistingCard) {
-                // YES - Skip to registration/check-in (Step 3)
-                document.getElementById('step3Title').textContent = 'Complete Your Check-in';
-                document.getElementById('step3Subtitle').textContent = 'Enter your existing medical cannabis registration details.';
-                document.getElementById('step3BackBtn').style.display = 'inline-block'; // Show back button
-                showStep(3);
-            } else {
-                // NO - Continue to verification/submission (Step 2)
-                // Show time period section only for Non-DC residents
-                const timePeriodSection = document.getElementById('timePeriodSection');
-                if (residentType === 'nondc') {
-                    timePeriodSection.style.display = 'block';
-                } else {
-                    timePeriodSection.style.display = 'none';
+                if (videoStream) {
+                    videoStream.getTracks().forEach(t => t.stop());
+                    videoStream = null;
                 }
 
-                // Populate address fields with correct address based on resident type
-                populateAddressFields();
-
-                showStep(2);
-            }
-        }
-
-        async function submitApplication() {
-            const consentEmail = document.getElementById('consentEmail').checked;
-            const consentAuth = document.getElementById('consentAuth').checked;
-            const consentLegal = document.getElementById('consentLegal').checked;
-
-            if (!consentEmail || !consentAuth || !consentLegal) {
-                return alert('Please agree to all terms and consents.');
+                // Clean up video element
+                const readerDiv = document.getElementById('reader');
+                if (readerDiv) readerDiv.innerHTML = '';
             }
 
-            const btn = document.getElementById('submitBtn');
-            const statusDiv = document.getElementById('submissionStatus');
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
+            // Barcode scan success
+            async function onBarcodeScanSuccess(decodedText) {
+                stopLiveScanner();
 
-            // Prepare form data for QuickBase submission
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                const applicationData = {
-                    firstName: document.getElementById('firstName').value,
-                    middleInitial: scannedData.middleInitial || '',
-                    lastName: document.getElementById('lastName').value,
-                    suffix: scannedData.suffix || '',
-                    dateOfBirth: document.getElementById('dob').value,
-                    street: document.getElementById('street').value,
-                    aptSuite: scannedData.aptSuite || '',
-                    city: document.getElementById('city').value,
-                    state: document.getElementById('state').value,
-                    zip: document.getElementById('zip').value,
-                    phoneNumber: document.getElementById('phone').value,
-                    email: document.getElementById('email').value,
-                    idImageBase64: e.target.result,
-                    residentType: residentType,
-                    timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
-                };
+                // UI Updates
+                const scannerFrame = document.getElementById('scannerFrame');
+                const scannerStatus = document.getElementById('scannerStatus');
+                const scannerSuccess = document.getElementById('scannerSuccess');
+                const manualUpload = document.getElementById('manualUploadSection');
+                const statusDiv = document.getElementById('scanStatus');
 
+                if (scannerFrame) scannerFrame.style.display = 'none';
+                if (scannerStatus) {
+                    scannerStatus.style.display = 'block';
+                    const statusText = scannerStatus.querySelector('.scanner-status-text span:last-child');
+                    if (statusText) statusText.textContent = '✓ Barcode detected! Processing...';
+                }
+                if (scannerSuccess) {
+                    scannerSuccess.style.display = 'flex';
+                    scannerSuccess.querySelector('span:last-child').textContent = 'Processing...';
+                }
+                if (manualUpload) manualUpload.classList.remove('visible');
+
+                // Send to backend
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/submit-application`, {
+                    const response = await fetch(`${API_BASE_URL}/api/parse-barcode`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(applicationData)
+                        body: JSON.stringify({ barcodeText: decodedText })
                     });
 
                     const result = await response.json();
 
-                    if (result.success) {
-                        statusDiv.style.display = 'block';
-                        statusDiv.className = 'status-msg success';
-                        statusDiv.innerHTML = '✓ Application form filled successfully!<br>The browser will stay open for your review.';
+                    if (result.success && result.data && result.data.firstName) {
+                        scannedData = result.data;
+                        backIdScanned = true;
 
-                        // Save to Supabase if configured
-                        if (supabaseClient) {
-                            const customerData = {
-                                first_name: applicationData.firstName,
-                                last_name: applicationData.lastName,
-                                date_of_birth: applicationData.dateOfBirth,
-                                street_address: applicationData.street,
-                                city: applicationData.city,
-                                state: applicationData.state,
-                                zip_code: applicationData.zip,
-                                phone: applicationData.phoneNumber,
-                                email: applicationData.email,
-                                resident_type: residentType,
-                                consent_email: consentEmail,
-                                consent_auth: consentAuth,
-                                consent_legal: consentLegal,
-                                has_existing_card: hasExistingCard,
-                                status: 'form_filled',
-                                created_at: new Date().toISOString()
-                            };
-                            await supabaseClient.from('customers').insert([customerData]);
+                        if (statusDiv) {
+                            statusDiv.style.display = 'block';
+                            statusDiv.className = 'status-msg success';
+                            statusDiv.textContent = '✓ ID scanned successfully!';
+                        }
+                        if (scannerSuccess) {
+                            scannerSuccess.querySelector('span:last-child').textContent = 'Complete!';
                         }
 
-                        btn.textContent = 'Form Filled - Review in Browser';
-                        setTimeout(() => {
-                            statusDiv.innerHTML += '<br><br>Please review the form in the browser window and submit when ready.';
-                        }, 2000);
+                        populateForm(scannedData);
                     } else {
-                        throw new Error(result.error || 'Submission failed');
+                        throw new Error(result.error || 'Parsing failed');
                     }
                 } catch (error) {
-                    console.error('Error submitting application:', error);
-                    statusDiv.style.display = 'block';
-                    statusDiv.className = 'status-msg error';
-                    statusDiv.textContent = '✗ Error submitting application: ' + error.message;
-                    btn.disabled = false;
-                    btn.textContent = 'Submit Application';
+                    console.error(error);
+                    backIdScanned = false;
+                    if (scannerSuccess) scannerSuccess.style.display = 'none';
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-msg error';
+                        statusDiv.innerHTML = '✗ Parsed failed. <button onclick="retryScanner()">Retry</button>';
+                    }
+                    if (manualUpload) manualUpload.classList.add('visible');
                 }
-            };
-            reader.readAsDataURL(frontImageFile);
-        }
-
-        async function finishCheckin() {
-            const regId = document.getElementById('regId').value;
-            const expDate = document.getElementById('expDate').value;
-            const btn = document.getElementById('checkinBtn');
-
-            if (!regId) {
-                return alert('Please enter your Registration ID.');
             }
 
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
+            function retryScanner() {
+                const scannerContainer = document.getElementById('scannerContainer');
 
-            try {
-                // Save check-in data
-                const checkinData = {
-                    first_name: document.getElementById('firstName').value || scannedData.firstName,
-                    last_name: document.getElementById('lastName').value || scannedData.lastName,
-                    phone: document.getElementById('phone').value,
-                    email: document.getElementById('email').value,
-                    registration_id: regId,
-                    expiration_date: expDate,
-                    has_existing_card: hasExistingCard,
-                    status: 'checked_in',
-                    checked_in_at: new Date().toISOString()
-                };
+                // Reset UI HTML structure if needed
+                if (scannerContainer) {
+                    scannerContainer.style.display = 'block';
+                    const successDiv = document.getElementById('scannerSuccess');
+                    if (successDiv) successDiv.style.display = 'none';
+                }
 
-                if (supabaseClient) {
-                    if (customerRecord && customerRecord.id) {
-                        await supabaseClient
-                            .from('customers')
-                            .update({
-                                registration_id: regId,
-                                expiration_date: expDate,
-                                status: 'checked_in',
-                                checked_in_at: new Date().toISOString()
-                            })
-                            .eq('id', customerRecord.id);
+                const statusDiv = document.getElementById('scanStatus');
+                if (statusDiv) statusDiv.style.display = 'none';
+
+                startLiveScanner();
+            }
+
+            // Manual Upload Fallback
+            function handleBackIdUpload(input) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+
+                    // Client-side Resize to prevent massive payloads (Fixes JSON errors)
+                    const img = new Image();
+                    img.onload = function () {
+                        const MAX_WIDTH = 1200; // Sufficient for barcode reading
+                        const MAX_HEIGHT = 1200;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Send compressed JPEG
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                        stopLiveScanner();
+
+                        // Show processing UI
+                        document.getElementById('scannerContainer').style.display = 'none';
+                        document.getElementById('backLoading').style.display = 'block';
+                        document.getElementById('manualUploadSection').classList.remove('visible');
+
+                        scanBarcode(dataUrl);
+                    };
+
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                    input.value = '';
+                }
+            }
+
+            async function scanBarcode(base64Image) {
+                const statusDiv = document.getElementById('scanStatus');
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/scan-barcode`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: base64Image })
+                    });
+
+                    const result = await response.json();
+                    document.getElementById('backLoading').style.display = 'none';
+                    document.getElementById('scannerContainer').style.display = 'block';
+
+                    if (result.success) {
+                        onBarcodeScanSuccessLogic(result.data); // Reuse success logic
                     } else {
-                        // New check-in (existing card holder)
-                        await supabaseClient.from('customers').insert([checkinData]);
+                        throw new Error(result.error);
+                    }
+                } catch (e) {
+                    document.getElementById('backLoading').style.display = 'none';
+                    document.getElementById('scannerContainer').style.display = 'block';
+                    document.getElementById('manualUploadSection').classList.add('visible');
+                    if (statusDiv) {
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-msg error';
+                        statusDiv.innerHTML = '✗ Scan failed. Try again.';
                     }
                 }
-
-                // Show success message in-frame
-                document.getElementById('step3Header').style.display = 'none';
-                document.getElementById('checkinForm').style.display = 'none';
-                document.getElementById('checkinSuccess').style.display = 'block';
-            } catch (error) {
-                console.error('Error during check-in:', error);
-                // Still show success message even if save failed
-                document.getElementById('step3Header').style.display = 'none';
-                document.getElementById('checkinForm').style.display = 'none';
-                document.getElementById('checkinSuccess').style.display = 'block';
             }
-        }
 
-        // Back navigation from Step 3
-        function goBackFromStep3() {
-            // Reset Step 3 form
-            document.getElementById('step3Header').style.display = 'block';
-            document.getElementById('checkinForm').style.display = 'block';
-            document.getElementById('checkinSuccess').style.display = 'none';
-            document.getElementById('regId').value = '';
+            // Helper to reuse success logic for manual upload
+            function onBarcodeScanSuccessLogic(data) {
+                scannedData = data;
+                backIdScanned = true;
 
-            // Go back to Step 1
-            showStep(1);
-        }
+                const scannerSuccess = document.getElementById('scannerSuccess');
+                if (scannerSuccess) {
+                    scannerSuccess.style.display = 'flex';
+                    scannerSuccess.querySelector('span:last-child').textContent = 'ID Scanned Successfully!';
+                }
 
-        // Initialize event listeners when DOM is ready
-        document.addEventListener('DOMContentLoaded', function () {
-            const checkinBtn = document.getElementById('checkinStartBtn');
-            if (checkinBtn) {
-                checkinBtn.addEventListener('click', startCheckin);
+                const statusDiv = document.getElementById('scanStatus');
+                if (statusDiv) {
+                    statusDiv.style.display = 'block';
+                    statusDiv.className = 'status-msg success';
+                    statusDiv.textContent = '✓ ID scanned successfully!';
+                }
+
+                populateForm(scannedData);
             }
-        });
-    </script>
+
+
+            function populateForm(data) {
+                // Only populate name and DOB initially - address will be populated in Step 2 based on resident type
+                if (data.firstName) document.getElementById('firstName').value = data.firstName;
+                if (data.lastName) document.getElementById('lastName').value = data.lastName;
+                if (data.dateOfBirth) document.getElementById('dob').value = data.dateOfBirth;
+                // Don't populate address here - it will be populated in goToStep2() based on resident type
+            }
+
+            // Populate address fields based on resident type
+            function populateAddressFields() {
+                console.log('populateAddressFields called');
+                console.log('residentType:', residentType);
+                console.log('scannedData:', scannedData);
+
+                // For Non-DC residents, use actual address if available
+                if (residentType === 'nondc' && scannedData.actualAddress) {
+                    console.log('Using ACTUAL address for Non-DC resident');
+                    const actual = scannedData.actualAddress;
+                    if (actual.street) document.getElementById('street').value = actual.street;
+                    if (actual.city) document.getElementById('city').value = actual.city;
+                    if (actual.state) document.getElementById('state').value = actual.state;
+                    if (actual.zip) document.getElementById('zip').value = actual.zip;
+                } else {
+                    // For DC residents or if no actual address, use default scannedData address
+                    console.log('Using default (DC) address');
+                    if (scannedData.street) document.getElementById('street').value = scannedData.street;
+                    if (scannedData.city) document.getElementById('city').value = scannedData.city;
+                    if (scannedData.state) document.getElementById('state').value = scannedData.state;
+                    if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
+                }
+            }
+
+            // Switch address based on resident type selection
+            function switchAddressForResidentType() {
+                console.log('switchAddressForResidentType called');
+                console.log('residentType:', residentType);
+                console.log('scannedData:', scannedData);
+                console.log('scannedData.actualAddress:', scannedData.actualAddress);
+
+                if (!scannedData.actualAddress) {
+                    console.log('No actualAddress available - using default address');
+                    return; // No actual address available (DC ID or no scan yet)
+                }
+
+                if (residentType === 'nondc') {
+                    console.log('Switching to ACTUAL address for Non-DC resident');
+                    // Use actual address from ID for Non-DC residents
+                    const actual = scannedData.actualAddress;
+                    if (actual.street) {
+                        document.getElementById('street').value = actual.street;
+                        console.log('Set street to:', actual.street);
+                    }
+                    if (actual.city) {
+                        document.getElementById('city').value = actual.city;
+                        console.log('Set city to:', actual.city);
+                    }
+                    if (actual.state) {
+                        document.getElementById('state').value = actual.state;
+                        console.log('Set state to:', actual.state);
+                    }
+                    if (actual.zip) {
+                        document.getElementById('zip').value = actual.zip;
+                        console.log('Set zip to:', actual.zip);
+                    }
+                } else if (residentType === 'dc') {
+                    console.log('Switching to DC address for DC resident');
+                    // Use DC address (already populated from scannedData)
+                    if (scannedData.street) document.getElementById('street').value = scannedData.street;
+                    if (scannedData.city) document.getElementById('city').value = scannedData.city;
+                    if (scannedData.state) document.getElementById('state').value = scannedData.state;
+                    if (scannedData.zip) document.getElementById('zip').value = scannedData.zip;
+                }
+            }
+
+            function goToStep2() {
+                const phone = document.getElementById('phone').value;
+                const email = document.getElementById('email').value;
+
+                if (!frontImageFile) return alert('Please upload Front of ID.');
+                if (!backIdScanned) return alert('Please scan Back of ID.');
+                if (hasExistingCard === null) return alert('Please indicate if you have a Medical Cannabis Card.');
+                if (!phone || !email) return alert('Please enter contact info.');
+
+                // If NO card selected, require resident type selection
+                if (hasExistingCard === false && !residentType) {
+                    return alert('Please select DC Resident or Non DC Resident.');
+                }
+
+                // Set default expiration date (3 months from now)
+                const today = new Date();
+                const exp = new Date(today.setMonth(today.getMonth() + 3));
+                document.getElementById('expDate').value = exp.toISOString().split('T')[0];
+
+                if (hasExistingCard) {
+                    // YES - Skip to registration/check-in (Step 3)
+                    document.getElementById('step3Title').textContent = 'Complete Your Check-in';
+                    document.getElementById('step3Subtitle').textContent = 'Enter your existing medical cannabis registration details.';
+                    document.getElementById('step3BackBtn').style.display = 'inline-block'; // Show back button
+                    showStep(3);
+                } else {
+                    // NO - Continue to verification/submission (Step 2)
+                    // Show time period section only for Non-DC residents
+                    const timePeriodSection = document.getElementById('timePeriodSection');
+                    if (residentType === 'nondc') {
+                        timePeriodSection.style.display = 'block';
+                    } else {
+                        timePeriodSection.style.display = 'none';
+                    }
+
+                    // Populate address fields with correct address based on resident type
+                    populateAddressFields();
+
+                    showStep(2);
+                }
+            }
+
+            async function submitApplication() {
+                const consentEmail = document.getElementById('consentEmail').checked;
+                const consentAuth = document.getElementById('consentAuth').checked;
+                const consentLegal = document.getElementById('consentLegal').checked;
+
+                if (!consentEmail || !consentAuth || !consentLegal) {
+                    return alert('Please agree to all terms and consents.');
+                }
+
+                const btn = document.getElementById('submitBtn');
+                const statusDiv = document.getElementById('submissionStatus');
+                btn.disabled = true;
+                btn.textContent = 'Processing...';
+
+                // Prepare form data for QuickBase submission
+                const reader = new FileReader();
+                reader.onload = async function (e) {
+                    const applicationData = {
+                        firstName: document.getElementById('firstName').value,
+                        middleInitial: scannedData.middleInitial || '',
+                        lastName: document.getElementById('lastName').value,
+                        suffix: scannedData.suffix || '',
+                        dateOfBirth: document.getElementById('dob').value,
+                        street: document.getElementById('street').value,
+                        aptSuite: scannedData.aptSuite || '',
+                        city: document.getElementById('city').value,
+                        state: document.getElementById('state').value,
+                        zip: document.getElementById('zip').value,
+                        phoneNumber: document.getElementById('phone').value,
+                        email: document.getElementById('email').value,
+                        idImageBase64: e.target.result,
+                        residentType: residentType,
+                        timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
+                    };
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/submit-application`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(applicationData)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            statusDiv.style.display = 'block';
+                            statusDiv.className = 'status-msg success';
+                            statusDiv.innerHTML = '✓ Application form filled successfully!<br>The browser will stay open for your review.';
+
+                            // Save to Supabase if configured
+                            if (supabaseClient) {
+                                const customerData = {
+                                    first_name: applicationData.firstName,
+                                    last_name: applicationData.lastName,
+                                    date_of_birth: applicationData.dateOfBirth,
+                                    street_address: applicationData.street,
+                                    city: applicationData.city,
+                                    state: applicationData.state,
+                                    zip_code: applicationData.zip,
+                                    phone: applicationData.phoneNumber,
+                                    email: applicationData.email,
+                                    resident_type: residentType,
+                                    consent_email: consentEmail,
+                                    consent_auth: consentAuth,
+                                    consent_legal: consentLegal,
+                                    has_existing_card: hasExistingCard,
+                                    status: 'form_filled',
+                                    created_at: new Date().toISOString()
+                                };
+                                await supabaseClient.from('customers').insert([customerData]);
+                            }
+
+                            btn.textContent = 'Form Filled - Review in Browser';
+                            setTimeout(() => {
+                                statusDiv.innerHTML += '<br><br>Please review the form in the browser window and submit when ready.';
+                            }, 2000);
+                        } else {
+                            throw new Error(result.error || 'Submission failed');
+                        }
+                    } catch (error) {
+                        console.error('Error submitting application:', error);
+                        statusDiv.style.display = 'block';
+                        statusDiv.className = 'status-msg error';
+                        statusDiv.textContent = '✗ Error submitting application: ' + error.message;
+                        btn.disabled = false;
+                        btn.textContent = 'Submit Application';
+                    }
+                };
+                reader.readAsDataURL(frontImageFile);
+            }
+
+            async function finishCheckin() {
+                const regId = document.getElementById('regId').value;
+                const expDate = document.getElementById('expDate').value;
+                const btn = document.getElementById('checkinBtn');
+
+                if (!regId) {
+                    return alert('Please enter your Registration ID.');
+                }
+
+                btn.disabled = true;
+                btn.textContent = 'Processing...';
+
+                try {
+                    // Save check-in data
+                    const checkinData = {
+                        first_name: document.getElementById('firstName').value || scannedData.firstName,
+                        last_name: document.getElementById('lastName').value || scannedData.lastName,
+                        phone: document.getElementById('phone').value,
+                        email: document.getElementById('email').value,
+                        registration_id: regId,
+                        expiration_date: expDate,
+                        has_existing_card: hasExistingCard,
+                        status: 'checked_in',
+                        checked_in_at: new Date().toISOString()
+                    };
+
+                    if (supabaseClient) {
+                        if (customerRecord && customerRecord.id) {
+                            await supabaseClient
+                                .from('customers')
+                                .update({
+                                    registration_id: regId,
+                                    expiration_date: expDate,
+                                    status: 'checked_in',
+                                    checked_in_at: new Date().toISOString()
+                                })
+                                .eq('id', customerRecord.id);
+                        } else {
+                            // New check-in (existing card holder)
+                            await supabaseClient.from('customers').insert([checkinData]);
+                        }
+                    }
+
+                    // Show success message in-frame
+                    document.getElementById('step3Header').style.display = 'none';
+                    document.getElementById('checkinForm').style.display = 'none';
+                    document.getElementById('checkinSuccess').style.display = 'block';
+                } catch (error) {
+                    console.error('Error during check-in:', error);
+                    // Still show success message even if save failed
+                    document.getElementById('step3Header').style.display = 'none';
+                    document.getElementById('checkinForm').style.display = 'none';
+                    document.getElementById('checkinSuccess').style.display = 'block';
+                }
+            }
+
+            // Back navigation from Step 3
+            function goBackFromStep3() {
+                // Reset Step 3 form
+                document.getElementById('step3Header').style.display = 'block';
+                document.getElementById('checkinForm').style.display = 'block';
+                document.getElementById('checkinSuccess').style.display = 'none';
+                document.getElementById('regId').value = '';
+
+                // Go back to Step 1
+                showStep(1);
+            }
+
+            // Initialize event listeners when DOM is ready
+            document.addEventListener('DOMContentLoaded', function () {
+                const checkinBtn = document.getElementById('checkinStartBtn');
+                if (checkinBtn) {
+                    checkinBtn.addEventListener('click', startCheckin);
+                }
+            });
+        </script>
 
 </body>
 
