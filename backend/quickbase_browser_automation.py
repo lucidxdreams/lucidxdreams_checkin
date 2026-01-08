@@ -312,6 +312,22 @@ class QuickBaseFormAutomation:
                         }
                     
                     logger.info("No validation errors found. Submitting form...")
+                    
+                    # Capture console errors
+                    console_messages = []
+                    page.on("console", lambda msg: console_messages.append(f"{msg.type}: {msg.text}"))
+                    
+                    # Check if submit button is enabled
+                    submit_btn = page.query_selector('input[type="submit"]')
+                    if submit_btn:
+                        is_disabled = submit_btn.get_attribute('disabled')
+                        if is_disabled:
+                            logger.error("Submit button is disabled!")
+                            return {
+                                'success': False,
+                                'error': 'Submit button is disabled - form may have validation errors'
+                            }
+                    
                     # Submit form
                     page.click('input[type="submit"]')
                     
@@ -323,6 +339,14 @@ class QuickBaseFormAutomation:
                         
                         current_url = page.url
                         logger.info(f"After submit, current URL: {current_url}")
+                        
+                        # Check for JavaScript alerts/popups
+                        try:
+                            alert_text = page.evaluate("() => window.alert && window.alert.toString()")
+                            if alert_text:
+                                logger.warning(f"Alert detected: {alert_text}")
+                        except:
+                            pass
                         
                         # Check if we're on the success page (pageID=18)
                         if 'pageID=18' in current_url or 'pageid=18' in current_url.lower():
@@ -346,17 +370,47 @@ class QuickBaseFormAutomation:
                             error_screenshot = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                             page.screenshot(path=error_screenshot)
                             
-                            # Check for validation errors again
+                            # Capture full page HTML for debugging
+                            page_html = page.content()
+                            html_dump = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                            with open(html_dump, 'w', encoding='utf-8') as f:
+                                f.write(page_html)
+                            logger.info(f"Saved page HTML to {html_dump}")
+                            
+                            # Check for validation errors with multiple selectors
                             error_messages = []
                             try:
-                                errors = page.query_selector_all('.error, .validation-error, label.error, .errMsg')
-                                for error in errors:
-                                    if error.is_visible():
-                                        error_text = error.inner_text()
-                                        if error_text and error_text.strip():
-                                            error_messages.append(error_text)
+                                # QuickBase-specific error patterns
+                                error_selectors = [
+                                    '.error', '.validation-error', 'label.error', '.errMsg',
+                                    '[class*="error"]', '[class*="Error"]', 
+                                    'div[style*="color: red"]', 'span[style*="color: red"]',
+                                    '.errormessage', '.error-message', '.field-error'
+                                ]
+                                
+                                for selector in error_selectors:
+                                    errors = page.query_selector_all(selector)
+                                    for error in errors:
+                                        if error.is_visible():
+                                            error_text = error.inner_text()
+                                            if error_text and error_text.strip() and error_text not in error_messages:
+                                                error_messages.append(error_text)
+                                                logger.warning(f"Error found with selector '{selector}': {error_text}")
+                                
+                                # Also check for any alerts or messages near the submit button
+                                try:
+                                    page_text = page.evaluate("() => document.body.innerText")
+                                    if "required" in page_text.lower() or "invalid" in page_text.lower():
+                                        logger.warning(f"Page contains 'required' or 'invalid' text")
+                                except:
+                                    pass
+                                    
                             except Exception as e:
                                 logger.error(f"Could not extract error messages: {e}")
+                            
+                            # Log console messages
+                            if console_messages:
+                                logger.error(f"Console messages during submission: {console_messages}")
                             
                             browser.close()
                             return {
@@ -364,7 +418,9 @@ class QuickBaseFormAutomation:
                                 'error': 'Form submission failed - did not redirect to success page',
                                 'currentUrl': current_url,
                                 'errorMessages': error_messages if error_messages else ['Unknown error - form did not submit'],
-                                'screenshot': error_screenshot
+                                'consoleMessages': console_messages,
+                                'screenshot': error_screenshot,
+                                'htmlDump': html_dump
                             }
                         
                     except PlaywrightTimeout:
