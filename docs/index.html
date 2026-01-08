@@ -2043,8 +2043,8 @@
 
                     // Fallback to WASM if native not available
                     if (!useNative) {
-                         const reader = await getZXingReader();
-                         if (!reader) throw new Error('Could not load barcode reader engine');
+                        const reader = await getZXingReader();
+                        if (!reader) throw new Error('Could not load barcode reader engine');
                     }
 
                     isScanning = true;
@@ -2064,7 +2064,7 @@
                         // Set canvas size
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
-                        
+
                         try {
                             if (useNative) {
                                 // --- NATIVE SCANNING PATH ---
@@ -2072,7 +2072,7 @@
                                     const barcodes = await nativeDetector.detect(video);
                                     if (barcodes.length > 0) {
                                         const result = barcodes[0];
-                                         if (result.rawValue && result.rawValue.length > 50) {
+                                        if (result.rawValue && result.rawValue.length > 50) {
                                             console.log('Native Scanner detected:', result.rawValue.substring(0, 20) + '...');
                                             onBarcodeScanSuccess(result.rawValue);
                                             return; // Stop loop
@@ -2104,7 +2104,7 @@
                                 }
                             }
                         } catch (e) {
-                           // Ignore frame errors
+                            // Ignore frame errors
                         }
 
                         if (isScanning) requestAnimationFrame(scanFrame);
@@ -2236,8 +2236,36 @@
             function handleBackIdUpload(input) {
                 if (input.files && input.files[0]) {
                     const file = input.files[0];
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
+
+                    // Client-side Resize to prevent massive payloads (Fixes JSON errors)
+                    const img = new Image();
+                    img.onload = function () {
+                        const MAX_WIDTH = 1200; // Sufficient for barcode reading
+                        const MAX_HEIGHT = 1200;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Send compressed JPEG
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
                         stopLiveScanner();
 
                         // Show processing UI
@@ -2245,7 +2273,12 @@
                         document.getElementById('backLoading').style.display = 'block';
                         document.getElementById('manualUploadSection').classList.remove('visible');
 
-                        scanBarcode(e.target.result);
+                        scanBarcode(dataUrl);
+                    };
+
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        img.src = e.target.result;
                     };
                     reader.readAsDataURL(file);
                     input.value = '';
