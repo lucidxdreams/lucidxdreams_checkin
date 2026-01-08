@@ -282,63 +282,104 @@ class QuickBaseFormAutomation:
                 logger.info(f"{resident_type.upper()} form filled completely.")
                 
                 if auto_submit:
-                    logger.info("Auto-submit enabled. Submitting form...")
+                    logger.info("Auto-submit enabled. Checking for validation errors...")
+                    
+                    # Wait for any client-side validation to complete
+                    page.wait_for_timeout(2000)
+                    
+                    # Check for validation errors before submitting
+                    error_messages = []
+                    try:
+                        errors = page.query_selector_all('.error, .validation-error, label.error, .errMsg')
+                        for error in errors:
+                            if error.is_visible():
+                                error_text = error.inner_text()
+                                if error_text and error_text.strip():
+                                    error_messages.append(error_text)
+                                    logger.warning(f"Validation error found: {error_text}")
+                    except Exception as e:
+                        logger.warning(f"Could not check for validation errors: {e}")
+                    
+                    if error_messages:
+                        error_screenshot = f"validation_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                        page.screenshot(path=error_screenshot)
+                        browser.close()
+                        return {
+                            'success': False,
+                            'error': 'Form has validation errors',
+                            'errorMessages': error_messages,
+                            'screenshot': error_screenshot
+                        }
+                    
+                    logger.info("No validation errors found. Submitting form...")
                     # Submit form
                     page.click('input[type="submit"]')
                     
-                    # Wait for navigation to success page
+                    # Wait for navigation with extended timeout
                     try:
-                        page.wait_for_url(f"**/pageID=18**", timeout=30000)
-                        logger.info(f"Redirected to success page: {page.url}")
+                        # Wait for either success page or any navigation
+                        page.wait_for_load_state('networkidle', timeout=60000)
+                        page.wait_for_timeout(3000)
                         
-                        # Try to extract any confirmation message or record ID
-                        page.wait_for_timeout(2000)  # Wait for page to fully load
+                        current_url = page.url
+                        logger.info(f"After submit, current URL: {current_url}")
                         
-                        # Get page content to look for confirmation
-                        page_content = page.content()
-                        
-                        success_result = {
-                            'success': True,
-                            'message': 'Application submitted successfully',
-                            'redirectUrl': page.url,
-                            'submittedData': {
-                                'name': signature_name,
-                                'email': application_data['email'],
-                                'dob': application_data['dateOfBirth']
+                        # Check if we're on the success page (pageID=18)
+                        if 'pageID=18' in current_url or 'pageid=18' in current_url.lower():
+                            logger.info(f"Successfully redirected to success page: {current_url}")
+                            
+                            success_result = {
+                                'success': True,
+                                'message': 'Application submitted successfully',
+                                'redirectUrl': current_url,
+                                'submittedData': {
+                                    'name': signature_name,
+                                    'email': application_data['email'],
+                                    'dob': application_data['dateOfBirth']
+                                }
                             }
-                        }
-                        
-                        # Screenshot for verification (optional)
-                        if not self.headless:
-                            screenshot_path = f"submission_success_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                            page.screenshot(path=screenshot_path)
-                            success_result['screenshot'] = screenshot_path
-                        
-                        browser.close()
-                        return success_result
+                            
+                            browser.close()
+                            return success_result
+                        else:
+                            # Not on success page - check for errors
+                            error_screenshot = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                            page.screenshot(path=error_screenshot)
+                            
+                            # Check for validation errors again
+                            error_messages = []
+                            try:
+                                errors = page.query_selector_all('.error, .validation-error, label.error, .errMsg')
+                                for error in errors:
+                                    if error.is_visible():
+                                        error_text = error.inner_text()
+                                        if error_text and error_text.strip():
+                                            error_messages.append(error_text)
+                            except Exception as e:
+                                logger.error(f"Could not extract error messages: {e}")
+                            
+                            browser.close()
+                            return {
+                                'success': False,
+                                'error': 'Form submission failed - did not redirect to success page',
+                                'currentUrl': current_url,
+                                'errorMessages': error_messages if error_messages else ['Unknown error - form did not submit'],
+                                'screenshot': error_screenshot
+                            }
                         
                     except PlaywrightTimeout:
                         # Capture error state
-                        error_screenshot = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                        error_screenshot = f"submission_timeout_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                         page.screenshot(path=error_screenshot)
                         
-                        # Check for validation errors
-                        error_messages = []
-                        try:
-                            errors = page.query_selector_all('.error, .validation-error, label.error')
-                            for error in errors:
-                                error_text = error.inner_text()
-                                if error_text:
-                                    error_messages.append(error_text)
-                        except Exception as e:
-                            logger.error(f"Could not extract error messages: {e}")
+                        current_url = page.url
+                        logger.error(f"Timeout waiting for form submission. Current URL: {current_url}")
                         
                         browser.close()
                         return {
                             'success': False,
-                            'error': 'Form submission failed - did not redirect to success page',
-                            'currentUrl': page.url,
-                            'errorMessages': error_messages,
+                            'error': 'Form submission timeout - page did not respond',
+                            'currentUrl': current_url,
                             'screenshot': error_screenshot
                         }
                 else:
