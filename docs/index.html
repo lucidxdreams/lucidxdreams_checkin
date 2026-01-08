@@ -2351,7 +2351,8 @@
 
                     const result = await response.json();
                     document.getElementById('backLoading').style.display = 'none';
-                    document.getElementById('scannerContainer').style.display = 'block';
+                    // Keep scanner container hidden - show success state instead
+                    document.getElementById('manualUploadSection').style.display = 'none';
 
                     if (result.success) {
                         onBarcodeScanSuccessLogic(result.data); // Reuse success logic
@@ -2360,12 +2361,13 @@
                     }
                 } catch (e) {
                     document.getElementById('backLoading').style.display = 'none';
-                    document.getElementById('scannerContainer').style.display = 'block';
+                    // Keep scanner hidden, show upload area again for retry
+                    document.getElementById('manualUploadSection').style.display = 'block';
                     document.getElementById('manualUploadSection').classList.add('visible');
                     if (statusDiv) {
                         statusDiv.style.display = 'block';
                         statusDiv.className = 'status-msg error';
-                        statusDiv.innerHTML = '✗ Scan failed. Try again.';
+                        statusDiv.innerHTML = '✗ Scan failed. Please try again with a clearer image.';
                     }
                 }
             }
@@ -2375,10 +2377,19 @@
                 scannedData = data;
                 backIdScanned = true;
 
-                const scannerSuccess = document.getElementById('scannerSuccess');
-                if (scannerSuccess) {
-                    scannerSuccess.style.display = 'flex';
-                    scannerSuccess.querySelector('span:last-child').textContent = 'ID Scanned Successfully!';
+                // Hide the upload section and show a compact success indicator
+                const manualUploadSection = document.getElementById('manualUploadSection');
+                if (manualUploadSection) {
+                    manualUploadSection.innerHTML = `
+                        <div class="front-id-compact visible" style="margin:0;">
+                            <div class="file-icon">🆔</div>
+                            <div class="file-info">
+                                <div class="file-name">Back of ID</div>
+                                <div class="file-status"><span>✓</span> Barcode scanned successfully</div>
+                            </div>
+                        </div>
+                    `;
+                    manualUploadSection.style.display = 'block';
                 }
 
                 const statusDiv = document.getElementById('scanStatus');
