@@ -178,7 +178,20 @@ class QuickBaseFormAutomation:
                     page.fill('input[name="_fid_16"]', application_data['zip'])
                     
                     # Contact information
-                    page.fill('input[name="_fid_17"]', application_data['phoneNumber'])
+                    # Phone Number - use robust filling method (field has type="phone" which is non-standard)
+                    page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
+                    phone_field = page.locator('input[name="_fid_17"]')
+                    phone_field.click()  # Focus the field
+                    page.wait_for_timeout(200)
+                    phone_field.clear()  # Clear any existing value
+                    page.wait_for_timeout(200)
+                    phone_field.type(application_data['phoneNumber'], delay=50)  # Type slowly
+                    page.wait_for_timeout(500)
+                    # Verify it was filled
+                    phone_value = phone_field.input_value()
+                    logger.info(f"Phone number filled: {phone_value}")
+                    
+                    # Email fields
                     page.fill('input[name="_fid_18"]', application_data['email'])
                     page.fill('input[name="_fid_117"]', application_data['email'])
                     
@@ -200,14 +213,9 @@ class QuickBaseFormAutomation:
                     page.set_input_files('input[name="_fid_121"]', temp_file_path)
                     logger.info("DC DMV Real ID uploaded")
                     
-                    # Reduced Fee (Always "No" as per user requirement)
-                    try:
-                        page.wait_for_selector('select.belowFPL', state='visible', timeout=2000)
-                        page.select_option('select.belowFPL', 'No')
-                        page.wait_for_timeout(500)
-                        logger.info("Reduced fee set to 'No'")
-                    except Exception as e:
-                        logger.warning(f"Could not set reduced fee option: {e}")
+                    # NOTE: Do NOT interact with Reduced Fee dropdown - leave it at default
+                    # Interacting with it triggers conditional field display even when set to "No"
+                    logger.info("Leaving Reduced Fee at default value (not interacting with dropdown)")
                     
                 else:
                     # Non-DC Resident Form Fields
@@ -243,9 +251,21 @@ class QuickBaseFormAutomation:
                     page.select_option('select[name="_fid_15"]', application_data.get('state', ''))
                     page.fill('input[name="_fid_16"]', application_data['zip'])
                     
-                    # Contact information (Phone is optional for Non-DC)
+                    # Contact information
+                    # Phone Number - use robust filling method (same as DC residents)
                     if application_data.get('phoneNumber'):
-                        page.fill('input[name="_fid_17"]', application_data['phoneNumber'])
+                        page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
+                        phone_field = page.locator('input[name="_fid_17"]')
+                        phone_field.click()
+                        page.wait_for_timeout(200)
+                        phone_field.clear()
+                        page.wait_for_timeout(200)
+                        phone_field.type(application_data['phoneNumber'], delay=50)
+                        page.wait_for_timeout(500)
+                        phone_value = phone_field.input_value()
+                        logger.info(f"Phone number filled (Non-DC): {phone_value}")
+                    
+                    # Email fields
                     page.fill('input[name="_fid_18"]', application_data['email'])
                     page.fill('input[name="_fid_117"]', application_data['email'])
                     
