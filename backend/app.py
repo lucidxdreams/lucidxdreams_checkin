@@ -462,9 +462,9 @@ def submit_application():
                 'error': 'Phone number must be 10 digits'
             }), 400
         
-        # Submit via browser automation (auto_submit=False to allow manual review)
+        # Submit via browser automation (auto_submit=True to submit the form)
         logger.info(f"Processing {resident_type.upper()} application for {data['firstName']} {data['lastName']}")
-        result = get_qb_automation().submit_application(data, auto_submit=False, resident_type=resident_type)
+        result = get_qb_automation().submit_application(data, auto_submit=True, resident_type=resident_type)
         
         if result.get('success'):
             logger.info(f"{resident_type.upper()} application form filled successfully: {data['email']}")

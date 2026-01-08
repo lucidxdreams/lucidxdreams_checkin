@@ -2600,11 +2600,12 @@
                                 await supabaseClient.from('customers').insert([customerData]);
                             }
 
-                            // Move to step 3 and show success message
+                            // Move to step 3 and show registration ID form
                             document.getElementById('step3Title').textContent = 'Application Submitted!';
-                            document.getElementById('step3Subtitle').textContent = 'Your medical cannabis application has been successfully submitted to DC ABCA.';
-                            document.getElementById('checkinForm').style.display = 'none';
-                            document.getElementById('checkinSuccess').style.display = 'block';
+                            document.getElementById('step3Subtitle').textContent = 'Your application has been submitted to DC ABCA. Please enter your registration details below to complete check-in.';
+                            document.getElementById('checkinForm').style.display = 'block';
+                            document.getElementById('checkinSuccess').style.display = 'none';
+                            document.getElementById('step3BackBtn').style.display = 'none';
                             showStep(3);
                         } else {
                             throw new Error(result.error || 'Submission failed');
