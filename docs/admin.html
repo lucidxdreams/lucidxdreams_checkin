@@ -743,83 +743,191 @@
 
     <script src="env-config.js"></script>
     <script>
-        const CONFIG = {
-            SUPABASE_URL: window.ENV_SUPABASE_URL || '',
-            SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || ''
-        };
+        (function() {
+            'use strict';
+            
+            // Configuration with validation
+            const CONFIG = {
+                SUPABASE_URL: window.ENV_SUPABASE_URL || '',
+                SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || ''
+            };
 
-        const supabase = (window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY)
-            ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
-            : null;
+            // Diagnostic logging
+            console.log('[Admin Dashboard] Initializing...');
+            console.log('[Admin Dashboard] Supabase CDN loaded:', !!window.supabase);
+            console.log('[Admin Dashboard] Config URL set:', !!CONFIG.SUPABASE_URL);
+            console.log('[Admin Dashboard] Config key set:', !!CONFIG.SUPABASE_ANON_KEY);
 
-        let allCustomers = [];
-        let filteredCustomers = [];
-
-        async function checkAuth() {
-            if (!supabase) {
-                console.error('Supabase not configured');
-                return;
-            }
-
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                showDashboard();
-                loadCustomers();
-            }
-        }
-
-        async function handleLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorEl = document.getElementById('loginError');
-            const loginBtn = document.getElementById('loginBtn');
-            const loginText = document.getElementById('loginText');
-            const loginLoading = document.getElementById('loginLoading');
-
-            errorEl.style.display = 'none';
-            loginBtn.disabled = true;
-            loginText.style.display = 'none';
-            loginLoading.style.display = 'inline';
-
+            // Initialize Supabase client with unique variable name
+            let supabaseAdminClient = null;
+            
             try {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (!window.supabase) {
+                    throw new Error('Supabase library not loaded from CDN');
+                }
                 
-                if (error) throw error;
-
-                showDashboard();
-                loadCustomers();
+                if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+                    throw new Error('Supabase configuration missing in env-config.js');
+                }
+                
+                supabaseAdminClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                console.log('[Admin Dashboard] Supabase client initialized successfully');
             } catch (error) {
-                errorEl.textContent = error.message || 'Login failed';
-                errorEl.style.display = 'block';
-                loginBtn.disabled = false;
-                loginText.style.display = 'inline';
-                loginLoading.style.display = 'none';
+                console.error('[Admin Dashboard] Initialization error:', error);
+                showInitializationError(error.message);
             }
-        }
 
-        async function handleLogout() {
-            if (supabase) {
-                await supabase.auth.signOut();
+            let allCustomers = [];
+            let filteredCustomers = [];
+
+            function showInitializationError(message) {
+                const loginScreen = document.getElementById('loginScreen');
+                if (loginScreen) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; padding: 16px; border-radius: 8px; margin-top: 16px; text-align: center;';
+                    errorDiv.innerHTML = `<strong>⚠️ Configuration Error</strong><br>${message}<br><small>Check env-config.js and browser console</small>`;
+                    loginScreen.querySelector('.login-card').appendChild(errorDiv);
+                }
             }
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('dashboardScreen').style.display = 'none';
-        }
 
-        function showDashboard() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('dashboardScreen').style.display = 'block';
-        }
+            async function checkAuth() {
+                console.log('[Admin Dashboard] Checking authentication...');
+                
+                if (!supabaseAdminClient) {
+                    console.error('[Admin Dashboard] Supabase client not initialized');
+                    return;
+                }
 
-        async function loadCustomers() {
-            if (!supabase) return;
+                try {
+                    const { data: { user }, error } = await supabaseAdminClient.auth.getUser();
+                    
+                    if (error) {
+                        console.log('[Admin Dashboard] No active session:', error.message);
+                        return;
+                    }
+                    
+                    if (user) {
+                        console.log('[Admin Dashboard] User authenticated:', user.email);
+                        showDashboard();
+                        loadCustomers();
+                    }
+                } catch (error) {
+                    console.error('[Admin Dashboard] Auth check failed:', error);
+                }
+            }
+
+            async function handleLogin(event) {
+                event.preventDefault();
+                console.log('[Admin Dashboard] Login attempt started');
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const errorEl = document.getElementById('loginError');
+                const loginBtn = document.getElementById('loginBtn');
+                const loginText = document.getElementById('loginText');
+                const loginLoading = document.getElementById('loginLoading');
+
+                // Clear previous errors
+                errorEl.style.display = 'none';
+                errorEl.textContent = '';
+
+                // Validation
+                if (!email || !password) {
+                    errorEl.textContent = 'Please enter both email and password';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                if (!supabaseAdminClient) {
+                    errorEl.innerHTML = '<strong>Configuration Error</strong><br>Supabase client not initialized. Check env-config.js';
+                    errorEl.style.display = 'block';
+                    console.error('[Admin Dashboard] Cannot login - client not initialized');
+                    return;
+                }
+
+                // Show loading state
+                loginBtn.disabled = true;
+                loginText.style.display = 'none';
+                loginLoading.style.display = 'inline';
+
+                try {
+                    console.log('[Admin Dashboard] Attempting login for:', email);
+                    
+                    const { data, error } = await supabaseAdminClient.auth.signInWithPassword({ 
+                        email: email.trim(), 
+                        password: password 
+                    });
+                    
+                    if (error) {
+                        console.error('[Admin Dashboard] Login error:', error);
+                        throw error;
+                    }
+
+                    if (data && data.user) {
+                        console.log('[Admin Dashboard] Login successful:', data.user.email);
+                        showDashboard();
+                        loadCustomers();
+                    } else {
+                        throw new Error('Login succeeded but no user data returned');
+                    }
+                } catch (error) {
+                    console.error('[Admin Dashboard] Login failed:', error);
+                    
+                    let errorMessage = error.message || 'Login failed';
+                    
+                    // User-friendly error messages
+                    if (errorMessage.includes('Invalid login credentials')) {
+                        errorMessage = 'Invalid email or password. Please check your credentials.';
+                    } else if (errorMessage.includes('Email not confirmed')) {
+                        errorMessage = 'Please verify your email address before signing in.';
+                    } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+                        errorMessage = 'Network error. Please check your internet connection.';
+                    }
+                    
+                    errorEl.innerHTML = `<strong>Login Failed</strong><br>${errorMessage}`;
+                    errorEl.style.display = 'block';
+                    
+                    // Reset button state
+                    loginBtn.disabled = false;
+                    loginText.style.display = 'inline';
+                    loginLoading.style.display = 'none';
+                }
+            }
+
+            async function handleLogout() {
+                console.log('[Admin Dashboard] Logging out...');
+                try {
+                    if (supabaseAdminClient) {
+                        await supabaseAdminClient.auth.signOut();
+                    }
+                    document.getElementById('loginScreen').style.display = 'flex';
+                    document.getElementById('dashboardScreen').style.display = 'none';
+                    console.log('[Admin Dashboard] Logout successful');
+                } catch (error) {
+                    console.error('[Admin Dashboard] Logout error:', error);
+                }
+            }
+
+            function showDashboard() {
+                console.log('[Admin Dashboard] Showing dashboard');
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboardScreen').style.display = 'block';
+            }
+
+            async function loadCustomers() {
+                console.log('[Admin Dashboard] Loading customers...');
+                
+                if (!supabaseAdminClient) {
+                    console.error('[Admin Dashboard] Cannot load customers - client not initialized');
+                    return;
+                }
 
             document.getElementById('loadingState').style.display = 'flex';
             document.getElementById('tableContent').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
 
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseAdminClient
                     .from('customers')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -828,10 +936,11 @@
 
                 allCustomers = data || [];
                 filteredCustomers = allCustomers;
+                console.log('[Admin Dashboard] Loaded customers:', allCustomers.length);
                 renderCustomers(filteredCustomers);
                 updateStats();
             } catch (error) {
-                console.error('Error loading customers:', error);
+                console.error('[Admin Dashboard] Error loading customers:', error);
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('emptyState').innerHTML = `
                     <div class="empty-state-icon">⚠️</div>
@@ -1055,7 +1164,21 @@
             URL.revokeObjectURL(url);
         }
 
-        checkAuth();
+            // Make functions globally accessible
+            window.handleLogin = handleLogin;
+            window.handleLogout = handleLogout;
+            window.viewCustomer = viewCustomer;
+            window.closeModal = closeModal;
+            window.handleSearch = handleSearch;
+            window.handleFilterChange = handleFilterChange;
+            window.loadCustomers = loadCustomers;
+            window.exportToCSV = exportToCSV;
+            window.openImageInNewTab = openImageInNewTab;
+
+            // Initialize on page load
+            console.log('[Admin Dashboard] Page loaded, checking auth...');
+            checkAuth();
+        })();
     </script>
 </body>
 </html>
