@@ -1,4 +1,4 @@
-# Lucid x Dreams - Dispensary Check-in System
+Do you meet the requirements for a reduced application fee?# Lucid x Dreams - Dispensary Check-in System
 
 In-store check-in system for Lucid x Dreams Medical Cannabis Dispensary. Customers can verify their ID, submit medical cannabis applications to DC ABCA, and check in with their registration.
 
@@ -14,8 +14,8 @@ In-store check-in system for Lucid x Dreams Medical Cannabis Dispensary. Custome
 - **Medical Card Detection** - Different flows for existing vs new cardholders
 - **DC & Non-DC Residents** - Support for both DC residents and visitors
 - **QuickBase Integration** - Automated form submission to DC ABCA portal
-- **Supabase Integration** - Cloud database for customer records
-- **Admin Dashboard** - View and manage all customer check-ins
+- **Supabase Integration** - Cloud database for customer records and ID image storage
+- **Professional Admin Dashboard** - Complete customer data access with ID image viewing
 - **Modern UI** - Professional dark theme with smooth animations
 
 ## Customer Flow
@@ -167,6 +167,34 @@ medical_card_submission/
 | `/api/extract-id` | POST | OCR extraction from ID photo |
 | `/api/submit-application` | POST | Submit application to QuickBase |
 | `/api/validate-age` | POST | Validate applicant is 21+ |
+
+## Admin Dashboard Access
+
+### Professional Admin Interface
+
+Access the admin dashboard to view complete customer data including uploaded ID images:
+
+**URL**: `https://lucidxdreams.github.io/admin.html`
+
+### Features:
+- 📊 **Dashboard Statistics** - Total, pending, and checked-in counts
+- 🔍 **Search & Filter** - Find customers by name, email, phone, or registration ID
+- 👤 **Customer Details** - View full profile with all submitted information
+- 🆔 **ID Image Viewing** - Secure access to front and back of government IDs
+- 📥 **CSV Export** - Download customer data for reporting
+- 🔐 **Secure Authentication** - Admin-only access via Supabase Auth
+
+### Setup Instructions:
+
+**First-time setup required** - See `ADMIN_SETUP_GUIDE.md` for detailed instructions:
+1. Update database schema (add ID image columns)
+2. Configure backend environment variables
+3. Create admin user in Supabase Auth
+4. Deploy and test
+
+**Quick Deploy**: See `DEPLOYMENT_CHECKLIST.md` for step-by-step deployment verification.
+
+---
 
 ## Deployment to Production
 

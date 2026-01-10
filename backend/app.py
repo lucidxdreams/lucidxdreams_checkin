@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 _ocr_service = None
 _barcode_service = None
 _qb_automation_class = None
+_supabase_manager = None
 
 def get_ocr_service():
     """Lazy load OCR service"""
@@ -39,6 +40,18 @@ def get_qb_automation_class():
         from quickbase_browser_automation import QuickBaseFormAutomation
         _qb_automation_class = QuickBaseFormAutomation
     return _qb_automation_class
+
+def get_supabase_manager():
+    """Lazy load Supabase manager"""
+    global _supabase_manager
+    if _supabase_manager is None:
+        try:
+            from supabase_client import SupabaseManager
+            _supabase_manager = SupabaseManager()
+        except ImportError:
+            logger.warning("Supabase client not available - install supabase-py package")
+            _supabase_manager = None
+    return _supabase_manager
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -504,12 +517,32 @@ def submit_application():
                 'error': 'Phone number must be 10 digits'
             }), 400
         
+        # Store customer data and ID images in Supabase (if configured)
+        customer_id = None
+        supabase_manager = get_supabase_manager()
+        if supabase_manager and supabase_manager.is_configured():
+            try:
+                customer_id, image_stored = supabase_manager.store_customer_with_images(
+                    data, 
+                    data['idImageBase64'],
+                    data.get('idImageBackBase64')
+                )
+                if customer_id:
+                    logger.info(f"Customer data stored in Supabase: ID {customer_id}")
+                else:
+                    logger.warning("Failed to store customer data in Supabase")
+            except Exception as e:
+                logger.error(f"Supabase storage error: {e}")
+        
         # Submit via browser automation (auto_submit=True to submit the form)
         logger.info(f"Processing {resident_type.upper()} application for {data['firstName']} {data['lastName']}")
         result = get_qb_automation().submit_application(data, auto_submit=True, resident_type=resident_type)
         
         if result.get('success'):
             logger.info(f"{resident_type.upper()} application form filled successfully: {data['email']}")
+            # Add customer ID to result if stored
+            if customer_id:
+                result['customerId'] = customer_id
             return jsonify(result), 200
         else:
             logger.error(f"Application submission failed: {result.get('error')}")
@@ -585,6 +618,89 @@ def validate_age():
         
     except Exception as e:
         logger.error(f"Error validating age: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/customers', methods=['GET'])
+def admin_list_customers():
+    """
+    Admin API: List all customers with optional filtering
+    
+    Query params:
+    - limit: Maximum number of results (default: 100)
+    - status: Filter by status ('pending', 'checked_in')
+    
+    Response:
+    {
+        "success": true,
+        "customers": [...],
+        "count": 42
+    }
+    """
+    try:
+        supabase_manager = get_supabase_manager()
+        if not supabase_manager or not supabase_manager.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'Supabase not configured'
+            }), 503
+        
+        limit = request.args.get('limit', 100, type=int)
+        status = request.args.get('status')
+        
+        customers = supabase_manager.list_customers(limit=limit, status=status)
+        
+        return jsonify({
+            'success': True,
+            'customers': customers,
+            'count': len(customers)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error listing customers: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/admin/customers/<int:customer_id>', methods=['GET'])
+def admin_get_customer(customer_id):
+    """
+    Admin API: Get customer details by ID
+    
+    Response:
+    {
+        "success": true,
+        "customer": {...}
+    }
+    """
+    try:
+        supabase_manager = get_supabase_manager()
+        if not supabase_manager or not supabase_manager.is_configured():
+            return jsonify({
+                'success': False,
+                'error': 'Supabase not configured'
+            }), 503
+        
+        customer = supabase_manager.get_customer(customer_id)
+        
+        if customer:
+            return jsonify({
+                'success': True,
+                'customer': customer
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Customer not found'
+            }), 404
+        
+    except Exception as e:
+        logger.error(f"Error getting customer: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': str(e)
