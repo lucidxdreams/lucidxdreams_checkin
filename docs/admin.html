@@ -639,7 +639,7 @@
                 <h1>🌿 Admin Dashboard</h1>
                 <p>Lucid x Dreams Customer Management</p>
             </div>
-            <form onsubmit="handleLogin(event)">
+            <form id="loginForm">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" required autocomplete="email">
@@ -1164,8 +1164,20 @@
             URL.revokeObjectURL(url);
         }
 
-            // Make functions globally accessible
-            window.handleLogin = handleLogin;
+            // Attach event listeners after DOM is ready
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('[Admin Dashboard] DOM ready, attaching event listeners...');
+                
+                const loginForm = document.getElementById('loginForm');
+                if (loginForm) {
+                    loginForm.addEventListener('submit', handleLogin);
+                    console.log('[Admin Dashboard] Login form handler attached');
+                } else {
+                    console.error('[Admin Dashboard] Login form not found!');
+                }
+            });
+
+            // Make functions globally accessible for onclick handlers
             window.handleLogout = handleLogout;
             window.viewCustomer = viewCustomer;
             window.closeModal = closeModal;
@@ -1176,8 +1188,16 @@
             window.openImageInNewTab = openImageInNewTab;
 
             // Initialize on page load
-            console.log('[Admin Dashboard] Page loaded, checking auth...');
-            checkAuth();
+            console.log('[Admin Dashboard] Script loaded, checking auth...');
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    console.log('[Admin Dashboard] DOM loaded, checking auth...');
+                    checkAuth();
+                });
+            } else {
+                console.log('[Admin Dashboard] DOM already loaded, checking auth...');
+                checkAuth();
+            }
         })();
     </script>
 </body>
