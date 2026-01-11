@@ -106,6 +106,8 @@ class SupabaseManager:
                 'state': customer_data.get('state', 'DC'),
                 'zip_code': customer_data.get('zip'),
                 'resident_type': customer_data.get('residentType', 'dc'),
+                'barcode': customer_data.get('barcode'),
+                'location': customer_data.get('location'),
                 'status': 'pending'
             }
             

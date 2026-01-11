@@ -1,8 +1,8 @@
 # Database Migration Required
 
-## Critical: Add Barcode Column to Customers Table
+## Critical: Add Required Columns to Customers Table
 
-The following database schema change is required to support the barcode feature:
+The following database schema changes are required:
 
 ### SQL Migration (Run in Supabase SQL Editor)
 
@@ -11,24 +11,30 @@ The following database schema change is required to support the barcode feature:
 ALTER TABLE customers 
 ADD COLUMN IF NOT EXISTS barcode TEXT;
 
--- Create index for faster barcode lookups (optional but recommended)
+-- Add location column to customers table
+ALTER TABLE customers 
+ADD COLUMN IF NOT EXISTS location TEXT;
+
+-- Create indexes for faster lookups (optional but recommended)
 CREATE INDEX IF NOT EXISTS idx_customers_barcode ON customers(barcode);
+CREATE INDEX IF NOT EXISTS idx_customers_location ON customers(location);
 ```
 
-### Verify Column Exists
+### Verify Columns Exist
 
-After running the migration, verify the column was added:
+After running the migration, verify the columns were added:
 
 ```sql
 SELECT column_name, data_type 
 FROM information_schema.columns 
-WHERE table_name = 'customers' AND column_name = 'barcode';
+WHERE table_name = 'customers' AND column_name IN ('barcode', 'location');
 ```
 
 ### Expected Schema
 
 The `customers` table should now include:
 - `barcode` (TEXT, nullable) - Stores driver's license barcode number from ID scan
+- `location` (TEXT, nullable) - Stores selected dispensary location
 
 ## Storage Bucket Verification
 
@@ -77,9 +83,11 @@ USING (bucket_id = 'customer-ids');
 
 ## Rolling Back (If Needed)
 
-To remove the barcode column:
+To remove the new columns:
 
 ```sql
 ALTER TABLE customers DROP COLUMN IF EXISTS barcode;
+ALTER TABLE customers DROP COLUMN IF EXISTS location;
 DROP INDEX IF EXISTS idx_customers_barcode;
+DROP INDEX IF EXISTS idx_customers_location;
 ```

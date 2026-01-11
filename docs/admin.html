@@ -688,8 +688,17 @@
             </div>
 
             <div class="controls">
-                <input type="date" id="dateFilter" class="filter-select" style="min-width: 160px;" onchange="handleFilterChange()">
-                <input type="text" id="searchInput" class="search-input" placeholder="Search by name, email, phone, or registration ID..." oninput="handleSearch()">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 200px;">
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">📅 Date:</label>
+                    <input type="date" id="dateFilter" class="filter-select" style="flex: 1; min-width: 140px;" onchange="handleFilterChange()">
+                </div>
+                <select id="locationFilter" class="filter-select" style="min-width: 200px;" onchange="handleFilterChange()">
+                    <option value="">📍 All Locations</option>
+                    <option value="3106 Mt Pleasant St NW">3106 Mt Pleasant St NW</option>
+                    <option value="1334 North Capitol St NW">1334 North Capitol St NW</option>
+                    <option value="1748 Columbia Rd NW">1748 Columbia Rd NW</option>
+                </select>
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search by name, email, phone, or registration ID..." oninput="handleSearch()">
                 <select id="statusFilter" class="filter-select" onchange="handleFilterChange()">
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
@@ -711,8 +720,7 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>DOB</th>
-                                    <th>Address</th>
+                                    <th>Location</th>
                                     <th>Registration ID</th>
                                     <th>Status</th>
                                     <th>Created</th>
@@ -978,8 +986,7 @@
                     <td><strong>${c.first_name} ${c.last_name}</strong></td>
                     <td>${c.email || '-'}</td>
                     <td>${c.phone || '-'}</td>
-                    <td>${c.date_of_birth ? formatDate(c.date_of_birth) : '-'}</td>
-                    <td>${c.street_address || '-'}, ${c.city || ''} ${c.state || ''}</td>
+                    <td style="font-size: 12px; color: var(--text-secondary);">${c.location || '-'}</td>
                     <td>${c.registration_id || '-'}</td>
                     <td><span class="status-badge ${c.status}">${c.status?.replace('_', ' ')}</span></td>
                     <td>${formatDateTime(c.created_at)}</td>
@@ -1002,6 +1009,7 @@
             const query = document.getElementById('searchInput').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
             const dateFilter = document.getElementById('dateFilter').value;
+            const locationFilter = document.getElementById('locationFilter').value;
 
             filteredCustomers = allCustomers.filter(c => {
                 const matchesSearch = !query || 
@@ -1011,6 +1019,8 @@
                     (c.registration_id && c.registration_id.toLowerCase().includes(query));
 
                 const matchesStatus = !statusFilter || c.status === statusFilter;
+                
+                const matchesLocation = !locationFilter || c.location === locationFilter;
                 
                 // Date filter: match customers processed on selected date
                 let matchesDate = true;
@@ -1022,7 +1032,7 @@
                     matchesDate = false;
                 }
 
-                return matchesSearch && matchesStatus && matchesDate;
+                return matchesSearch && matchesStatus && matchesDate && matchesLocation;
             });
 
             renderCustomers(filteredCustomers);
@@ -1048,6 +1058,15 @@
                                 <div class="id-image-wrapper">
                                     <img src="${customer.id_front_url}" alt="Front of ID" class="id-image" onclick="openImageInNewTab('${customer.id_front_url}')">
                                 </div>
+                                <div style="padding: 12px; text-align: center;">
+                                    <a href="${customer.id_front_url}" download="ID_Front_${customer.first_name}_${customer.last_name}.jpg" 
+                                       style="display: inline-block; padding: 10px 20px; background: var(--primary); color: white; 
+                                       border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.2s;"
+                                       onmouseover="this.style.background='var(--primary-dark)'" 
+                                       onmouseout="this.style.background='var(--primary)'">
+                                        📥 Download Front
+                                    </a>
+                                </div>
                             </div>
                         ` : ''}
                         ${customer.id_back_url ? `
@@ -1055,6 +1074,15 @@
                                 <div class="id-image-header">Back of ID</div>
                                 <div class="id-image-wrapper">
                                     <img src="${customer.id_back_url}" alt="Back of ID" class="id-image" onclick="openImageInNewTab('${customer.id_back_url}')">
+                                </div>
+                                <div style="padding: 12px; text-align: center;">
+                                    <a href="${customer.id_back_url}" download="ID_Back_${customer.first_name}_${customer.last_name}.jpg" 
+                                       style="display: inline-block; padding: 10px 20px; background: var(--primary); color: white; 
+                                       border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.2s;"
+                                       onmouseover="this.style.background='var(--primary-dark)'" 
+                                       onmouseout="this.style.background='var(--primary)'">
+                                        📥 Download Back
+                                    </a>
                                 </div>
                             </div>
                         ` : ''}
@@ -1109,6 +1137,10 @@
                     <div class="info-item">
                         <div class="info-label">Expiration Date</div>
                         <div class="info-value">${customer.expiration_date ? formatDate(customer.expiration_date) : '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Location</div>
+                        <div class="info-value">${customer.location || 'Not specified'}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Resident Type</div>

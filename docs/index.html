@@ -73,15 +73,68 @@
         }
 
         .logo-img {
-            max-width: 240px;
-            width: 100%;
-            height: auto;
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
             filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
             transition: transform 0.3s ease;
+            margin-bottom: 10px;
         }
 
         .logo-img:hover {
             transform: scale(1.02);
+        }
+
+        .brand-logo {
+            width: 240px;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .brand-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .location-selector {
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        .location-selector label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .location-selector select {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .location-selector select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .location-selector select:hover {
+            border-color: var(--primary-light);
         }
 
         /* Progress Indicator - 3 Circles */
@@ -1503,7 +1556,19 @@
 
     <!-- Logo -->
     <div class="logo-container">
-        <img src="logo/logo.webp" alt="Lucid x Dreams" class="logo-img">
+        <img src="logo/LOGO_1.webp" alt="Lucid x Dreams" class="logo-img">
+        <img src="logo/LOGO_2.webp" alt="Lucid x Dreams" class="brand-logo">
+        <p class="brand-text">Medical Cannabis Dispensary</p>
+        
+        <div class="location-selector">
+            <label for="locationSelect">Please choose location:</label>
+            <select id="locationSelect" required>
+                <option value="">Select a location...</option>
+                <option value="3106 Mt Pleasant St NW">3106 Mt Pleasant St NW</option>
+                <option value="1334 North Capitol St NW">1334 North Capitol St NW</option>
+                <option value="1748 Columbia Rd NW">1748 Columbia Rd NW (Coming Soon)</option>
+            </select>
+        </div>
     </div>
 
     <!-- Form Wrapper -->
@@ -1848,6 +1913,7 @@
             let frontImageFile = null;
             let backImageFile = null;
             let barcodeData = null; // Store barcode data from back of ID
+            let selectedLocation = null; // Store selected location
             let currentUploadType = null;
             let customerRecord = null;
             let hasExistingCard = null; // true = YES, false = NO
@@ -1931,6 +1997,17 @@
             // Start check-in from welcome page
             function startCheckin() {
                 console.log('startCheckin called');
+                
+                // Validate location selection
+                const locationSelect = document.getElementById('locationSelect');
+                if (!locationSelect.value) {
+                    alert('Please select a location before continuing.');
+                    locationSelect.focus();
+                    return;
+                }
+                selectedLocation = locationSelect.value;
+                console.log('Selected location:', selectedLocation);
+                
                 const step0 = document.getElementById('step0');
                 const stepsContainer = document.getElementById('stepsContainer');
                 const step1 = document.getElementById('step1');
@@ -2614,6 +2691,8 @@
                         email: document.getElementById('email').value,
                         idImageBase64: e.target.result,
                         idImageBackBase64: backImageBase64,
+                        barcode: barcodeData,
+                        location: selectedLocation,
                         residentType: residentType,
                         timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
                     };
@@ -2628,31 +2707,17 @@
                         const result = await response.json();
 
                         if (result.success) {
-                            // Save to Supabase if configured
-                            if (supabaseClient) {
-                                const customerData = {
-                                    first_name: applicationData.firstName,
-                                    last_name: applicationData.lastName,
-                                    date_of_birth: applicationData.dateOfBirth,
-                                    street_address: applicationData.street,
-                                    city: applicationData.city,
-                                    state: applicationData.state,
-                                    zip_code: applicationData.zip,
-                                    phone: applicationData.phoneNumber,
-                                    email: applicationData.email,
-                                    resident_type: residentType,
-                                    consent_email: consentEmail,
-                                    consent_auth: consentAuth,
-                                    consent_legal: consentLegal,
-                                    has_existing_card: hasExistingCard,
-                                    barcode: barcodeData,
-                                    status: 'submitted',
-                                    created_at: new Date().toISOString()
-                                };
-                                const insertResult = await supabaseClient.from('customers').insert([customerData]).select();
-                                if (insertResult.data && insertResult.data.length > 0) {
-                                    customerRecord = insertResult.data[0];
-                                    console.log('Customer record created:', customerRecord.id);
+                            // Backend stores customer + images and returns customerId
+                            if (result.customerId && supabaseClient) {
+                                // Fetch the complete customer record with image URLs
+                                const { data } = await supabaseClient
+                                    .from('customers')
+                                    .select('*')
+                                    .eq('id', result.customerId)
+                                    .single();
+                                if (data) {
+                                    customerRecord = data;
+                                    console.log('Customer record retrieved with images:', customerRecord.id);
                                 }
                             }
 
