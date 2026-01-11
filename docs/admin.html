@@ -1022,14 +1022,21 @@
                 
                 const matchesLocation = !locationFilter || c.location === locationFilter;
                 
-                // Date filter: match customers processed on selected date
+                // Date filter: match customers created or checked-in on selected date
                 let matchesDate = true;
-                if (dateFilter && c.checked_in_at) {
-                    const checkinDate = new Date(c.checked_in_at).toISOString().split('T')[0];
-                    matchesDate = checkinDate === dateFilter;
-                } else if (dateFilter && !c.checked_in_at) {
-                    // If date filter is active but no check-in date, exclude
-                    matchesDate = false;
+                if (dateFilter) {
+                    if (c.checked_in_at) {
+                        // Use check-in date for checked-in customers
+                        const checkinDate = new Date(c.checked_in_at).toISOString().split('T')[0];
+                        matchesDate = checkinDate === dateFilter;
+                    } else if (c.created_at) {
+                        // Use creation date for submitted customers
+                        const createdDate = new Date(c.created_at).toISOString().split('T')[0];
+                        matchesDate = createdDate === dateFilter;
+                    } else {
+                        // Exclude customers with no dates
+                        matchesDate = false;
+                    }
                 }
 
                 return matchesSearch && matchesStatus && matchesDate && matchesLocation;
