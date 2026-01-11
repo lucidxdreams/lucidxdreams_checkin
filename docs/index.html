@@ -1846,6 +1846,8 @@
 
             let scannedData = {};
             let frontImageFile = null;
+            let backImageFile = null;
+            let barcodeData = null; // Store barcode data from back of ID
             let currentUploadType = null;
             let customerRecord = null;
             let hasExistingCard = null; // true = YES, false = NO
@@ -2337,6 +2339,7 @@
             function handleBackIdUpload(input) {
                 if (input.files && input.files[0]) {
                     const file = input.files[0];
+                    backImageFile = file; // Store original file for later upload
 
                     // Client-side Resize to prevent massive payloads (Fixes JSON errors)
                     const img = new Image();
@@ -2422,6 +2425,8 @@
             function onBarcodeScanSuccessLogic(data) {
                 scannedData = data;
                 backIdScanned = true;
+                // Store full barcode data including license number
+                barcodeData = data.licenseNumber || data.documentNumber || null;
 
                 // Hide the upload section and show a compact success indicator
                 const manualUploadSection = document.getElementById('manualUploadSection');
@@ -2584,6 +2589,16 @@
                 // Prepare form data for QuickBase submission
                 const reader = new FileReader();
                 reader.onload = async function (e) {
+                    // Prepare back image as base64 if available
+                    let backImageBase64 = null;
+                    if (backImageFile) {
+                        backImageBase64 = await new Promise((resolve) => {
+                            const backReader = new FileReader();
+                            backReader.onload = (ev) => resolve(ev.target.result);
+                            backReader.readAsDataURL(backImageFile);
+                        });
+                    }
+
                     const applicationData = {
                         firstName: document.getElementById('firstName').value,
                         middleInitial: scannedData.middleInitial || '',
@@ -2598,6 +2613,7 @@
                         phoneNumber: document.getElementById('phone').value,
                         email: document.getElementById('email').value,
                         idImageBase64: e.target.result,
+                        idImageBackBase64: backImageBase64,
                         residentType: residentType,
                         timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
                     };
@@ -2629,10 +2645,15 @@
                                     consent_auth: consentAuth,
                                     consent_legal: consentLegal,
                                     has_existing_card: hasExistingCard,
+                                    barcode: barcodeData,
                                     status: 'submitted',
                                     created_at: new Date().toISOString()
                                 };
-                                await supabaseClient.from('customers').insert([customerData]);
+                                const insertResult = await supabaseClient.from('customers').insert([customerData]).select();
+                                if (insertResult.data && insertResult.data.length > 0) {
+                                    customerRecord = insertResult.data[0];
+                                    console.log('Customer record created:', customerRecord.id);
+                                }
                             }
 
                             // Move to step 3 and show registration ID form
@@ -2681,24 +2702,32 @@
                         registration_id: regId,
                         expiration_date: expDate,
                         has_existing_card: hasExistingCard,
+                        barcode: barcodeData,
                         status: 'checked_in',
                         checked_in_at: new Date().toISOString()
                     };
 
                     if (supabaseClient) {
                         if (customerRecord && customerRecord.id) {
+                            // UPDATE existing record to prevent duplicates
                             await supabaseClient
                                 .from('customers')
                                 .update({
                                     registration_id: regId,
                                     expiration_date: expDate,
+                                    barcode: barcodeData,
                                     status: 'checked_in',
                                     checked_in_at: new Date().toISOString()
                                 })
                                 .eq('id', customerRecord.id);
+                            console.log('Customer record updated:', customerRecord.id);
                         } else {
-                            // New check-in (existing card holder)
-                            await supabaseClient.from('customers').insert([checkinData]);
+                            // New check-in (existing card holder who skipped application)
+                            const insertResult = await supabaseClient.from('customers').insert([checkinData]).select();
+                            if (insertResult.data && insertResult.data.length > 0) {
+                                customerRecord = insertResult.data[0];
+                                console.log('New customer record created for existing card holder:', customerRecord.id);
+                            }
                         }
                     }
 

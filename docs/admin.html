@@ -688,6 +688,7 @@
             </div>
 
             <div class="controls">
+                <input type="date" id="dateFilter" class="filter-select" style="min-width: 160px;" onchange="handleFilterChange()">
                 <input type="text" id="searchInput" class="search-input" placeholder="Search by name, email, phone, or registration ID..." oninput="handleSearch()">
                 <select id="statusFilter" class="filter-select" onchange="handleFilterChange()">
                     <option value="">All Status</option>
@@ -935,9 +936,17 @@
                 if (error) throw error;
 
                 allCustomers = data || [];
-                filteredCustomers = allCustomers;
+                
+                // Set today's date as default filter on first load
+                const dateFilterEl = document.getElementById('dateFilter');
+                if (!dateFilterEl.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dateFilterEl.value = today;
+                }
+                
+                // Apply filters
+                handleSearch();
                 console.log('[Admin Dashboard] Loaded customers:', allCustomers.length);
-                renderCustomers(filteredCustomers);
                 updateStats();
             } catch (error) {
                 console.error('[Admin Dashboard] Error loading customers:', error);
@@ -992,6 +1001,7 @@
         function handleSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
 
             filteredCustomers = allCustomers.filter(c => {
                 const matchesSearch = !query || 
@@ -1001,8 +1011,18 @@
                     (c.registration_id && c.registration_id.toLowerCase().includes(query));
 
                 const matchesStatus = !statusFilter || c.status === statusFilter;
+                
+                // Date filter: match customers processed on selected date
+                let matchesDate = true;
+                if (dateFilter && c.checked_in_at) {
+                    const checkinDate = new Date(c.checked_in_at).toISOString().split('T')[0];
+                    matchesDate = checkinDate === dateFilter;
+                } else if (dateFilter && !c.checked_in_at) {
+                    // If date filter is active but no check-in date, exclude
+                    matchesDate = false;
+                }
 
-                return matchesSearch && matchesStatus;
+                return matchesSearch && matchesStatus && matchesDate;
             });
 
             renderCustomers(filteredCustomers);
@@ -1047,7 +1067,16 @@
                 </div>
             `;
 
+            // Barcode section at the top
+            const barcodeHTML = customer.barcode ? `
+                <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Driver's License Barcode</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; letter-spacing: 2px;">${customer.barcode}</div>
+                </div>
+            ` : '';
+
             modalBody.innerHTML = `
+                ${barcodeHTML}
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Full Name</div>
