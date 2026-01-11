@@ -556,6 +556,97 @@ def submit_application():
         }), 500
 
 
+@app.route('/api/complete-checkin', methods=['POST'])
+def complete_checkin():
+    """
+    Complete customer check-in process
+    
+    Request body:
+    {
+        "customerId": 123,
+        "registrationId": "REG123456",
+        "expirationDate": "2024-12-31",
+        "barcode": "123456789",
+        "location": "3106 Mt Pleasant St NW"
+    }
+    
+    Response:
+    {
+        "success": true,
+        "message": "Check-in completed successfully"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        customer_id = data.get('customerId')
+        registration_id = data.get('registrationId')
+        expiration_date = data.get('expirationDate')
+        
+        if not customer_id:
+            return jsonify({'success': False, 'error': 'Customer ID is required'}), 400
+        
+        if not registration_id:
+            return jsonify({'success': False, 'error': 'Registration ID is required'}), 400
+        
+        if not expiration_date:
+            return jsonify({'success': False, 'error': 'Expiration date is required'}), 400
+        
+        # Update customer record in Supabase
+        supabase_manager = get_supabase_manager()
+        if supabase_manager and supabase_manager.is_configured():
+            try:
+                update_data = {
+                    'registration_id': registration_id,
+                    'expiration_date': expiration_date,
+                    'barcode': data.get('barcode'),
+                    'location': data.get('location'),
+                    'status': 'checked_in',
+                    'checked_in_at': datetime.now().isoformat()
+                }
+                
+                # Remove None values to avoid overwriting existing data
+                update_data = {k: v for k, v in update_data.items() if v is not None}
+                
+                success = supabase_manager.update_customer_checkin(customer_id, update_data)
+                
+                if success:
+                    logger.info(f"Check-in completed for customer {customer_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Check-in completed successfully'
+                    }), 200
+                else:
+                    logger.error(f"Failed to update customer {customer_id} for check-in")
+                    return jsonify({
+                        'success': False,
+                        'error': 'Failed to update customer record'
+                    }), 500
+                    
+            except Exception as e:
+                logger.error(f"Supabase check-in update error: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Database update failed: {str(e)}'
+                }), 500
+        else:
+            logger.warning("Supabase not configured - check-in data not saved")
+            return jsonify({
+                'success': False,
+                'error': 'Database not available'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error completing check-in: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Failed to complete check-in: {str(e)}'
+        }), 500
+
+
 @app.route('/api/validate-age', methods=['POST'])
 def validate_age():
     """

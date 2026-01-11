@@ -60,6 +60,21 @@ class SupabaseManager:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"customer_{customer_id}/{side}_{timestamp}.jpg"
             
+            logger.info(f"Attempting to upload {side} ID image: {filename} ({len(image_data)} bytes)")
+            
+            # Create customer directory first
+            try:
+                # Try to create the customer directory by uploading a dummy file
+                dummy_path = f"customer_{customer_id}/.gitkeep"
+                self.client.storage.from_('customer-ids').upload(
+                    dummy_path,
+                    b'',
+                    file_options={"content-type": "text/plain"}
+                )
+            except Exception as dir_error:
+                # Directory might already exist, continue
+                logger.debug(f"Directory creation attempt: {dir_error}")
+            
             # Upload to storage
             response = self.client.storage.from_('customer-ids').upload(
                 filename,
@@ -67,16 +82,24 @@ class SupabaseManager:
                 file_options={"content-type": "image/jpeg"}
             )
             
-            if response:
-                # Get public URL
-                public_url = self.client.storage.from_('customer-ids').get_public_url(filename)
-                logger.info(f"Uploaded {side} ID image: {filename}")
-                return public_url
+            logger.info(f"Storage upload response: {response}")
             
-            return None
+            # Check if upload was successful
+            if hasattr(response, 'data') and response.data:
+                # Get public URL
+                try:
+                    public_url = self.client.storage.from_('customer-ids').get_public_url(filename)
+                    logger.info(f"Successfully uploaded {side} ID image: {filename} -> {public_url}")
+                    return public_url
+                except Exception as url_error:
+                    logger.error(f"Failed to get public URL for {filename}: {url_error}")
+                    return None
+            else:
+                logger.error(f"Upload failed for {filename}. Response: {response}")
+                return None
             
         except Exception as e:
-            logger.error(f"Failed to upload {side} ID image: {e}")
+            logger.error(f"Failed to upload {side} ID image: {e}", exc_info=True)
             return None
     
     def store_customer(self, customer_data: Dict) -> Optional[int]:
@@ -160,6 +183,34 @@ class SupabaseManager:
             
         except Exception as e:
             logger.error(f"Failed to update customer images: {e}")
+            return False
+    
+    def update_customer_checkin(self, customer_id: int, checkin_data: Dict) -> bool:
+        """
+        Update customer record with check-in information
+        
+        Args:
+            customer_id: Customer database ID
+            checkin_data: Dictionary containing check-in fields
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.is_configured():
+            return False
+        
+        try:
+            response = self.client.table('customers').update(checkin_data).eq('id', customer_id).execute()
+            
+            if response.data:
+                logger.info(f"Updated customer {customer_id} with check-in data: {list(checkin_data.keys())}")
+                return True
+            else:
+                logger.error(f"Failed to update customer {customer_id} - no data returned")
+                return False
+            
+        except Exception as e:
+            logger.error(f"Failed to update customer check-in: {e}")
             return False
     
     def store_customer_with_images(

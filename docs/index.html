@@ -2782,36 +2782,55 @@
                 btn.textContent = 'Processing...';
 
                 try {
-                    // Save check-in data
-                    const checkinData = {
-                        first_name: document.getElementById('firstName').value || scannedData.firstName,
-                        last_name: document.getElementById('lastName').value || scannedData.lastName,
-                        phone: document.getElementById('phone').value,
-                        email: document.getElementById('email').value,
-                        registration_id: regId,
-                        expiration_date: expDate,
-                        has_existing_card: hasExistingCard,
-                        barcode: barcodeData,
-                        status: 'checked_in',
-                        checked_in_at: new Date().toISOString()
-                    };
+                    if (customerRecord && customerRecord.id) {
+                        // UPDATE existing record via backend API
+                        const checkinData = {
+                            customerId: customerRecord.id,
+                            registrationId: regId,
+                            expirationDate: expDate,
+                            barcode: barcodeData,
+                            location: selectedLocation
+                        };
 
-                    if (supabaseClient) {
-                        if (customerRecord && customerRecord.id) {
-                            // UPDATE existing record to prevent duplicates
-                            await supabaseClient
-                                .from('customers')
-                                .update({
-                                    registration_id: regId,
-                                    expiration_date: expDate,
-                                    barcode: barcodeData,
-                                    status: 'checked_in',
-                                    checked_in_at: new Date().toISOString()
-                                })
-                                .eq('id', customerRecord.id);
-                            console.log('Customer record updated:', customerRecord.id);
+                        const response = await fetch(`${API_BASE_URL}/api/complete-checkin`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(checkinData)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            console.log('Check-in completed via backend:', customerRecord.id);
+                            
+                            // Update local record with check-in data
+                            customerRecord.registration_id = regId;
+                            customerRecord.expiration_date = expDate;
+                            customerRecord.barcode = barcodeData;
+                            customerRecord.location = selectedLocation;
+                            customerRecord.status = 'checked_in';
+                            customerRecord.checked_in_at = new Date().toISOString();
                         } else {
-                            // New check-in (existing card holder who skipped application)
+                            throw new Error(result.error || 'Check-in failed');
+                        }
+                    } else {
+                        // New check-in (existing card holder who skipped application)
+                        // This case shouldn't happen with current flow, but handle it
+                        const checkinData = {
+                            first_name: document.getElementById('firstName').value || scannedData.firstName,
+                            last_name: document.getElementById('lastName').value || scannedData.lastName,
+                            phone: document.getElementById('phone').value,
+                            email: document.getElementById('email').value,
+                            registration_id: regId,
+                            expiration_date: expDate,
+                            has_existing_card: hasExistingCard,
+                            barcode: barcodeData,
+                            location: selectedLocation,
+                            status: 'checked_in',
+                            checked_in_at: new Date().toISOString()
+                        };
+
+                        if (supabaseClient) {
                             const insertResult = await supabaseClient.from('customers').insert([checkinData]).select();
                             if (insertResult.data && insertResult.data.length > 0) {
                                 customerRecord = insertResult.data[0];
@@ -2826,10 +2845,11 @@
                     document.getElementById('checkinSuccess').style.display = 'block';
                 } catch (error) {
                     console.error('Error during check-in:', error);
-                    // Still show success message even if save failed
-                    document.getElementById('step3Header').style.display = 'none';
-                    document.getElementById('checkinForm').style.display = 'none';
-                    document.getElementById('checkinSuccess').style.display = 'block';
+                    alert('Error completing check-in: ' + error.message);
+                    
+                    // Reset button on error
+                    btn.disabled = false;
+                    btn.textContent = '✓ Check-in';
                 }
             }
 
