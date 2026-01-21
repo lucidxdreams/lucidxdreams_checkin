@@ -81,7 +81,49 @@ class QuickBaseFormAutomation:
         
         logger.info(f"Saved temporary file: {temp_path}")
         return temp_path
-    
+
+    def fill_and_verify(self, page, selector: str, value: str, use_type: bool = False):
+        """
+        Fill a text input and verify its value matches exactly.
+        This ensures fields are correctly filled before proceeding.
+
+        Args:
+            page: Playwright page object
+            selector: CSS selector for the input field
+            value: Value to fill
+            use_type: If True, simulate typing (press_sequentially) instead of filling.
+                     Useful for fields with input masks or special formatting logic.
+        """
+        loc = page.locator(selector)
+        if use_type:
+            loc.click()
+            loc.clear()
+            loc.press_sequentially(value)
+        else:
+            loc.fill(value)
+
+        # Verify the value was set correctly using safe argument passing
+        try:
+            page.wait_for_function(
+                "([s, v]) => document.querySelector(s).value === v",
+                [selector, value],
+                timeout=1000
+            )
+        except PlaywrightTimeout:
+            # Retry once if verification failed
+            logger.warning(f"Verification failed for {selector}. Retrying fill...")
+            if use_type:
+                loc.clear()
+                loc.press_sequentially(value)
+            else:
+                loc.fill(value)
+
+            page.wait_for_function(
+                "([s, v]) => document.querySelector(s).value === v",
+                [selector, value],
+                timeout=1000
+            )
+
     def submit_application(self, application_data: Dict, auto_submit: bool = False, resident_type: str = 'dc') -> Dict:
         """
         Submit application to QuickBase form via browser automation
@@ -162,56 +204,54 @@ class QuickBaseFormAutomation:
                     page.select_option('select[name="_fid_76"]', 'Initial')
                     
                     # Name fields
-                    page.fill('input[name="_fid_6"]', application_data['firstName'])
+                    self.fill_and_verify(page, 'input[name="_fid_6"]', application_data['firstName'])
                     if application_data.get('middleInitial'):
-                        page.fill('input[name="_fid_7"]', application_data['middleInitial'][:1])
-                    page.fill('input[name="_fid_8"]', application_data['lastName'])
+                        self.fill_and_verify(page, 'input[name="_fid_7"]', application_data['middleInitial'][:1])
+                    self.fill_and_verify(page, 'input[name="_fid_8"]', application_data['lastName'])
                     if application_data.get('suffix'):
-                        page.fill('input[name="_fid_35"]', application_data['suffix'])
+                        self.fill_and_verify(page, 'input[name="_fid_35"]', application_data['suffix'])
                     
                     # DC DMV Real ID (set to "Yes" as requested)
                     page.select_option('select[name="_fid_122"]', 'Yes')
-                    # Wait for QuickBase JavaScript to hide "Proof of Residency #1" and show "DC DMV Real ID" upload
-                    page.wait_for_timeout(1500)
-                    logger.info("DC DMV Real ID set to Yes, waiting for form update")
+                    # Wait for conditional field (DC DMV Real ID file upload) to appear instead of waiting fixed time
+                    try:
+                        page.wait_for_selector('input[name="_fid_121"]', state='visible', timeout=5000)
+                        logger.info("DC DMV Real ID field visible")
+                    except PlaywrightTimeout:
+                        logger.warning("Timeout waiting for DC DMV Real ID field, continuing anyway")
                     
                     # Date of Birth
-                    page.fill('input[name="_fid_11"]', application_data['dateOfBirth'])
-                    page.wait_for_timeout(500)
+                    self.fill_and_verify(page, 'input[name="_fid_11"]', application_data['dateOfBirth'])
                     
                     # Address fields
-                    page.fill('input[name="_fid_12"]', application_data['street'])
+                    self.fill_and_verify(page, 'input[name="_fid_12"]', application_data['street'])
                     if application_data.get('aptSuite'):
-                        page.fill('input[name="_fid_13"]', application_data['aptSuite'])
-                    page.fill('input[name="_fid_14"]', application_data.get('city', 'Washington'))
+                        self.fill_and_verify(page, 'input[name="_fid_13"]', application_data['aptSuite'])
+                    self.fill_and_verify(page, 'input[name="_fid_14"]', application_data.get('city', 'Washington'))
                     page.select_option('select[name="_fid_15"]', application_data.get('state', 'DC'))
-                    page.fill('input[name="_fid_16"]', application_data['zip'])
+                    self.fill_and_verify(page, 'input[name="_fid_16"]', application_data['zip'])
                     
                     # Contact information
-                    # Phone Number - use robust filling method (field has type="phone" which is non-standard)
+                    # Phone Number
                     page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
-                    phone_field = page.locator('input[name="_fid_17"]')
-                    phone_field.click()  # Focus the field
-                    page.wait_for_timeout(200)
-                    phone_field.clear()  # Clear any existing value
-                    page.wait_for_timeout(200)
-                    phone_field.type(application_data['phoneNumber'], delay=50)  # Type slowly
-                    page.wait_for_timeout(500)
-                    # Verify it was filled
-                    phone_value = phone_field.input_value()
-                    logger.info(f"Phone number filled: {phone_value}")
+                    # Use typing for phone number as it may have input masking/formatting logic
+                    self.fill_and_verify(page, 'input[name="_fid_17"]', application_data['phoneNumber'], use_type=True)
+                    logger.info("Phone number filled and verified")
                     
                     # Email fields
-                    page.fill('input[name="_fid_18"]', application_data['email'])
-                    page.fill('input[name="_fid_117"]', application_data['email'])
+                    self.fill_and_verify(page, 'input[name="_fid_18"]', application_data['email'])
+                    self.fill_and_verify(page, 'input[name="_fid_117"]', application_data['email'])
                     
                     # Certification Type
                     try:
                         page.wait_for_selector('select[name="_fid_124"]', state='visible', timeout=2000)
                         page.select_option('select[name="_fid_124"]', 'Self certification')
-                        # Wait for QuickBase JavaScript to hide recommendation fields (when self-cert is selected)
-                        page.wait_for_timeout(1500)
-                        logger.info("Self certification selected, waiting for form update")
+                        # Wait for Self Certification checkbox (fid_176) to appear
+                        try:
+                            page.wait_for_selector('input[name="_fid_176"]', state='visible', timeout=5000)
+                            logger.info("Self certification checkbox visible")
+                        except PlaywrightTimeout:
+                            logger.warning("Timeout waiting for Self certification checkbox")
                     except PlaywrightTimeout:
                         logger.warning("Certification type dropdown not visible")
                     
@@ -224,8 +264,6 @@ class QuickBaseFormAutomation:
                     logger.info("DC DMV Real ID uploaded")
                     
                     # NOTE: Do NOT interact with Reduced Fee dropdown - leave it at default
-                    # Interacting with it triggers conditional field display even when set to "No"
-                    logger.info("Leaving Reduced Fee at default value (not interacting with dropdown)")
                     
                 else:
                     # Non-DC Resident Form Fields
@@ -238,46 +276,39 @@ class QuickBaseFormAutomation:
                         logger.info(f"Time Period set to: {time_period_value}")
                     
                     # Name fields
-                    page.fill('input[name="_fid_6"]', application_data['firstName'])
+                    self.fill_and_verify(page, 'input[name="_fid_6"]', application_data['firstName'])
                     if application_data.get('middleInitial'):
-                        page.fill('input[name="_fid_7"]', application_data['middleInitial'][:1])
-                    page.fill('input[name="_fid_8"]', application_data['lastName'])
+                        self.fill_and_verify(page, 'input[name="_fid_7"]', application_data['middleInitial'][:1])
+                    self.fill_and_verify(page, 'input[name="_fid_8"]', application_data['lastName'])
                     if application_data.get('suffix'):
-                        page.fill('input[name="_fid_35"]', application_data['suffix'])
+                        self.fill_and_verify(page, 'input[name="_fid_35"]', application_data['suffix'])
                     
                     # Date of Birth
-                    page.fill('input[name="_fid_11"]', application_data['dateOfBirth'])
-                    page.wait_for_timeout(500)
+                    self.fill_and_verify(page, 'input[name="_fid_11"]', application_data['dateOfBirth'])
                     
-                    # Address fields (from customer ID, not DC addresses)
-                    page.fill('input[name="_fid_12"]', application_data['street'])
+                    # Address fields
+                    self.fill_and_verify(page, 'input[name="_fid_12"]', application_data['street'])
                     if application_data.get('aptSuite'):
-                        page.fill('input[name="_fid_13"]', application_data['aptSuite'])
+                        self.fill_and_verify(page, 'input[name="_fid_13"]', application_data['aptSuite'])
                     
                     # Country (default to United States)
                     page.select_option('select[name="_fid_175"]', 'United States of America')
                     
-                    page.fill('input[name="_fid_14"]', application_data.get('city', ''))
+                    self.fill_and_verify(page, 'input[name="_fid_14"]', application_data.get('city', ''))
                     page.select_option('select[name="_fid_15"]', application_data.get('state', ''))
-                    page.fill('input[name="_fid_16"]', application_data['zip'])
+                    self.fill_and_verify(page, 'input[name="_fid_16"]', application_data['zip'])
                     
                     # Contact information
-                    # Phone Number - use robust filling method (same as DC residents)
+                    # Phone Number
                     if application_data.get('phoneNumber'):
                         page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
-                        phone_field = page.locator('input[name="_fid_17"]')
-                        phone_field.click()
-                        page.wait_for_timeout(200)
-                        phone_field.clear()
-                        page.wait_for_timeout(200)
-                        phone_field.type(application_data['phoneNumber'], delay=50)
-                        page.wait_for_timeout(500)
-                        phone_value = phone_field.input_value()
-                        logger.info(f"Phone number filled (Non-DC): {phone_value}")
+                        # Use typing for phone number as it may have input masking/formatting logic
+                        self.fill_and_verify(page, 'input[name="_fid_17"]', application_data['phoneNumber'], use_type=True)
+                        logger.info("Phone number filled and verified (Non-DC)")
                     
                     # Email fields
-                    page.fill('input[name="_fid_18"]', application_data['email'])
-                    page.fill('input[name="_fid_117"]', application_data['email'])
+                    self.fill_and_verify(page, 'input[name="_fid_18"]', application_data['email'])
+                    self.fill_and_verify(page, 'input[name="_fid_117"]', application_data['email'])
                     
                     # Upload Government ID
                     page.set_input_files('input[name="_fid_50"]', temp_file_path)
@@ -306,12 +337,13 @@ class QuickBaseFormAutomation:
                 
                 # Signature name
                 signature_name = f"{application_data['firstName']} {application_data['lastName']}"
-                page.fill('input[name="_fid_59"]', signature_name)
+                self.fill_and_verify(page, 'input[name="_fid_59"]', signature_name)
                 
                 # Date field
                 date_value = page.input_value('input[name="_fid_60"]')
                 if not date_value:
                     today = datetime.now().strftime("%Y-%m-%d")
+                    # We can't verify read-only fields easily via input value sometimes, so using evaluate
                     page.evaluate(f'document.querySelector("input[name=\\"_fid_60\\"]").value = "{today}"')
                 
                 logger.info(f"{resident_type.upper()} form filled completely.")
@@ -319,10 +351,7 @@ class QuickBaseFormAutomation:
                 if auto_submit:
                     logger.info("Auto-submit enabled. Checking for validation errors...")
                     
-                    # Wait for any client-side validation to complete
-                    page.wait_for_timeout(2000)
-                    
-                    # Check for validation errors before submitting
+                    # Check for validation errors immediately (no wait)
                     error_messages = []
                     try:
                         errors = page.query_selector_all('.error, .validation-error, label.error, .errMsg')
@@ -362,29 +391,22 @@ class QuickBaseFormAutomation:
                     # Submit form
                     page.click('input[type="submit"]')
                     
-                    # Wait for navigation with extended timeout
+                    # Wait for navigation to success page OR error
                     try:
-                        # Wait for either success page or any navigation
-                        page.wait_for_load_state('networkidle', timeout=60000)
-                        page.wait_for_timeout(3000)
+                        # Wait for URL to change to success page
+                        # DC: pageID=18, Non-DC: pageID=40
+                        logger.info("Waiting for redirection to success page...")
                         
-                        current_url = page.url
-                        logger.info(f"After submit, current URL: {current_url}")
-                        
-                        # Check for JavaScript alerts/popups
                         try:
-                            alert_text = page.evaluate("() => window.alert && window.alert.toString()")
-                            if alert_text:
-                                logger.warning(f"Alert detected: {alert_text}")
-                        except:
-                            pass
-                        
-                        # Check if we're on success page (DC: pageID=18, Non-DC: pageID=40)
-                        is_success = ('pageID=18' in current_url or 'pageid=18' in current_url.lower() or
-                                     'pageID=40' in current_url or 'pageid=40' in current_url.lower())
-                        
-                        if is_success:
-                            logger.info(f"Successfully redirected to success page ({resident_type.upper()}): {current_url}")
+                            # Wait up to 60s for the URL to match success pattern
+                            page.wait_for_url(
+                                lambda url: 'pageID=18' in url or 'pageid=18' in url.lower() or
+                                           'pageID=40' in url or 'pageid=40' in url.lower(),
+                                timeout=60000
+                            )
+                            # If we get here, we are on success page
+                            current_url = page.url
+                            logger.info(f"Successfully redirected to success page: {current_url}")
                             
                             success_result = {
                                 'success': True,
@@ -396,94 +418,69 @@ class QuickBaseFormAutomation:
                                     'dob': application_data['dateOfBirth']
                                 }
                             }
-                            
                             browser.close()
                             return success_result
-                        else:
-                            # Not on success page - check for errors
-                            error_screenshot = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                            page.screenshot(path=error_screenshot)
                             
-                            # Capture full page HTML for debugging
-                            page_html = page.content()
-                            html_dump = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-                            with open(html_dump, 'w', encoding='utf-8') as f:
-                                f.write(page_html)
-                            logger.info(f"Saved page HTML to {html_dump}")
-                            
-                            # Check for validation errors with multiple selectors
-                            error_messages = []
-                            try:
-                                # QuickBase-specific error patterns
-                                error_selectors = [
-                                    '.error', '.validation-error', 'label.error', '.errMsg',
-                                    '[class*="error"]', '[class*="Error"]', 
-                                    'div[style*="color: red"]', 'span[style*="color: red"]',
-                                    '.errormessage', '.error-message', '.field-error'
-                                ]
-                                
-                                for selector in error_selectors:
-                                    errors = page.query_selector_all(selector)
-                                    for error in errors:
-                                        if error.is_visible():
-                                            error_text = error.inner_text()
-                                            if error_text and error_text.strip() and error_text not in error_messages:
-                                                error_messages.append(error_text)
-                                                logger.warning(f"Error found with selector '{selector}': {error_text}")
-                                
-                                # Also check for any alerts or messages near the submit button
-                                try:
-                                    page_text = page.evaluate("() => document.body.innerText")
-                                    if "required" in page_text.lower() or "invalid" in page_text.lower():
-                                        logger.warning(f"Page contains 'required' or 'invalid' text")
-                                except:
-                                    pass
-                                    
-                            except Exception as e:
-                                logger.error(f"Could not extract error messages: {e}")
-                            
-                            # Log console messages
-                            if console_messages:
-                                logger.error(f"Console messages during submission: {console_messages}")
-                            
-                            browser.close()
-                            return {
-                                'success': False,
-                                'error': 'Form submission failed - did not redirect to success page',
-                                'currentUrl': current_url,
-                                'errorMessages': error_messages if error_messages else ['Unknown error - form did not submit'],
-                                'consoleMessages': console_messages,
-                                'screenshot': error_screenshot,
-                                'htmlDump': html_dump
-                            }
-                        
-                    except PlaywrightTimeout:
-                        # Capture error state
-                        error_screenshot = f"submission_timeout_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                        page.screenshot(path=error_screenshot)
+                        except PlaywrightTimeout:
+                            # Timeout waiting for URL change - likely an error on page
+                            logger.warning("Timeout waiting for success URL. Checking for errors on current page...")
+                            pass # Fall through to error checking
                         
                         current_url = page.url
-                        logger.error(f"Timeout waiting for form submission. Current URL: {current_url}")
+
+                        # Capture errors if we didn't redirect
+                        error_screenshot = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                        page.screenshot(path=error_screenshot)
+                        
+                        # Capture full page HTML for debugging
+                        page_html = page.content()
+                        html_dump = f"submission_error_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+                        with open(html_dump, 'w', encoding='utf-8') as f:
+                            f.write(page_html)
+
+                        # Extract error messages
+                        error_messages = []
+                        error_selectors = [
+                            '.error', '.validation-error', 'label.error', '.errMsg',
+                            '[class*="error"]', '[class*="Error"]',
+                            'div[style*="color: red"]', 'span[style*="color: red"]',
+                            '.errormessage', '.error-message', '.field-error'
+                        ]
+
+                        for selector in error_selectors:
+                            errors = page.query_selector_all(selector)
+                            for error in errors:
+                                if error.is_visible():
+                                    error_text = error.inner_text()
+                                    if error_text and error_text.strip() and error_text not in error_messages:
+                                        error_messages.append(error_text)
                         
                         browser.close()
                         return {
                             'success': False,
-                            'error': 'Form submission timeout - page did not respond',
+                            'error': 'Form submission failed - did not redirect to success page',
                             'currentUrl': current_url,
-                            'screenshot': error_screenshot
+                            'errorMessages': error_messages if error_messages else ['Unknown error - form did not submit'],
+                            'consoleMessages': console_messages,
+                            'screenshot': error_screenshot,
+                            'htmlDump': html_dump
                         }
+
+                    except Exception as e:
+                        logger.error(f"Error during submission verification: {e}")
+                        browser.close()
+                        raise
+
                 else:
-                    # Auto-submit disabled - form is filled but not submitted
+                    # Auto-submit disabled
                     logger.info("Auto-submit disabled. Form filled and ready for manual review.")
                     
-                    # Take screenshot for verification
                     screenshot_path = f"form_filled_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
                     page.screenshot(path=screenshot_path)
                     
-                    # Keep browser open for manual review (only if not headless)
                     if not self.headless:
                         logger.info("Browser kept open for manual review. Close browser to continue.")
-                        page.wait_for_timeout(300000)  # Wait 5 minutes for review
+                        page.wait_for_timeout(300000)
                     
                     browser.close()
                     return {
