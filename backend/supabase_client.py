@@ -131,7 +131,7 @@ class SupabaseManager:
                 'zip_code': customer_data.get('zip'),
                 'resident_type': customer_data.get('residentType', 'dc'),
                 'barcode': customer_data.get('barcode'),
-                'raw_barcode_data': customer_data.get('rawBarcodeData'),
+                # 'raw_barcode_data': customer_data.get('rawBarcodeData'), # Column missing in DB
                 'location': customer_data.get('location'),
                 'status': status,
                 # Include registration details if provided (for direct check-in)
