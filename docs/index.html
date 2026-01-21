@@ -2445,8 +2445,8 @@
                     // Client-side Resize to prevent massive payloads (Fixes JSON errors)
                     const img = new Image();
                     img.onload = function () {
-                        const MAX_WIDTH = 1200; // Sufficient for barcode reading
-                        const MAX_HEIGHT = 1200;
+                        const MAX_WIDTH = 2500; // Increased for better barcode resolution
+                        const MAX_HEIGHT = 2500;
                         let width = img.width;
                         let height = img.height;
 
