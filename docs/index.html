@@ -2881,12 +2881,22 @@
                          // Construct data: Raw ID Data + Tab + Reg ID + Tab + Exp Date
                          const barcodeContent = rawBarcodeText + '\t' + regId + '\t' + expDate;
 
+                         // Create a scrollable wrapper for the barcode to prevent squishing
+                         const scrollWrapper = document.createElement('div');
+                         scrollWrapper.style.overflowX = 'auto';
+                         scrollWrapper.style.padding = '10px 0';
+                         scrollWrapper.style.width = '100%';
+                         // Ensure scrollbar is visible if needed
+                         scrollWrapper.style.webkitOverflowScrolling = 'touch';
+
                          const canvas = document.createElement('canvas');
                          canvas.id = 'flowhubBarcode';
-                         canvas.style.maxWidth = '100%';
-                         canvas.style.height = 'auto';
+                         // Do NOT set max-width: 100% here, as it causes aliasing/unscannable barcodes
+                         // instead we use the scrollWrapper to handle overflow
+                         canvas.style.display = 'inline-block';
+                         canvas.style.background = 'white'; // Contrast
 
-                         // Container for the barcode
+                         // Container for the barcode section
                          const barcodeContainer = document.createElement('div');
                          barcodeContainer.style.marginTop = '24px';
                          barcodeContainer.style.padding = '20px';
@@ -2904,8 +2914,9 @@
                          label.style.textTransform = 'uppercase';
                          label.style.letterSpacing = '1px';
 
+                         scrollWrapper.appendChild(canvas);
                          barcodeContainer.appendChild(label);
-                         barcodeContainer.appendChild(canvas);
+                         barcodeContainer.appendChild(scrollWrapper);
 
                          const successDiv = document.getElementById('checkinSuccess');
                          // Remove any existing barcode container if present (retry scenario)
@@ -2916,16 +2927,21 @@
                          successDiv.appendChild(barcodeContainer);
 
                          try {
+                             // Use bwip-js to render PDF417
+                             // Increased scale and height for better scanner readability
                              bwipjs.toCanvas(canvas, {
                                  bcid:        'pdf417',       // Barcode type
                                  text:        barcodeContent, // Text to encode
-                                 scale:       2,              // 2x scaling factor
-                                 height:      10,             // Bar height, in millimeters
-                                 includetext: false,          // Show human-readable text
-                                 textxalign:  'center',       // Always good to set this
+                                 scale:       4,              // 4x scaling factor (High Res)
+                                 height:      30,             // 30mm height (Taller)
+                                 includetext: false,          // No text below
+                                 textxalign:  'center',
+                                 padding:     10,             // White space padding
                              });
                          } catch (e) {
                              console.error('Barcode generation error:', e);
+                             label.textContent = 'Error generating barcode';
+                             label.style.color = 'red';
                          }
                     }
 
