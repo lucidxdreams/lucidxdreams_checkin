@@ -165,9 +165,10 @@ def crop_to_id_card(image: Image.Image) -> Optional[Image.Image]:
             approx = cv2.approxPolyDP(c, 0.02 * peri, True)
             area = cv2.contourArea(c)
 
-            # ID card is rectangular (4 points)
-            # Area should be significant (e.g. > 10% of image) but not the whole image (> 95%)
-            if len(approx) == 4 and (0.10 * img_area) < area < (0.95 * img_area):
+            # ID card is rectangular (4 points), but allow slight deviations (up to 6 for rounded corners/glare)
+            # Area should be significant (> 2% of image) but not the whole image (> 95%)
+            # Lowered threshold to 2% to handle high-res images where card is small
+            if 4 <= len(approx) <= 6 and (0.02 * img_area) < area < (0.95 * img_area):
                 card_contour = approx
                 break
 
@@ -245,23 +246,44 @@ def preprocess_for_barcode(image: Image.Image) -> list:
                                    cv2.THRESH_BINARY, 21, 10)
     variants.append((Image.fromarray(thresh), "cv_adaptive_thresh"))
     
-    # 4. Upscaled (only if small and needed)
-    if width < 1500: # Increased threshold for upscaling
+    # 4. Resizing Strategy
+    # If image is HUGE (> 2000px wide) and we failed to crop ROI, downscale it slightly
+    # to help the scanner focus and speed up processing.
+    if width > 2000:
+        downscaled = cv2.resize(gray, (width//2, height//2), interpolation=cv2.INTER_AREA)
+        variants.append((Image.fromarray(downscaled), "cv_downscaled_0.5x"))
+        # Use downscaled for rotation variants below to save time
+        gray_for_rotation = downscaled
+    elif width < 1500:
+         # Upscale small images
          upscaled = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
          variants.append((Image.fromarray(upscaled), "cv_upscaled_2x"))
+         gray_for_rotation = gray
+    else:
+         gray_for_rotation = gray
 
     # 5. Smart Rotation (0, 90, 180, 270)
     # Only rotate the best candidates (Gray and Threshold) to save time
+    # Use 'gray_for_rotation' base to optimize performance on large images
+
+    # Recalculate thresh for the rotation base if it changed
+    if width > 2000: # Re-thresh the downscaled version
+        blur_rot = cv2.GaussianBlur(gray_for_rotation, (5, 5), 0)
+        thresh_rot = cv2.adaptiveThreshold(blur_rot, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY, 21, 10)
+    else:
+        thresh_rot = thresh
+
     for angle in [90, 180, 270]:
         if angle == 90:
-            rotated = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
-            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_90_CLOCKWISE)
+            rotated = cv2.rotate(gray_for_rotation, cv2.ROTATE_90_CLOCKWISE)
+            rotated_thresh = cv2.rotate(thresh_rot, cv2.ROTATE_90_CLOCKWISE)
         elif angle == 180:
-            rotated = cv2.rotate(gray, cv2.ROTATE_180)
-            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_180)
+            rotated = cv2.rotate(gray_for_rotation, cv2.ROTATE_180)
+            rotated_thresh = cv2.rotate(thresh_rot, cv2.ROTATE_180)
         elif angle == 270:
-            rotated = cv2.rotate(gray, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            rotated = cv2.rotate(gray_for_rotation, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            rotated_thresh = cv2.rotate(thresh_rot, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
         variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
         variants.append((Image.fromarray(rotated_thresh), f"cv_rotated_{angle}_thresh"))
