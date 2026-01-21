@@ -1116,8 +1116,8 @@
                 barcodeHTML = `
                 <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
                     <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Scan to Check-in</div>
-                    <div style="overflow-x: auto; padding: 10px 0; width: 100%;">
-                        <canvas id="adminBarcodeCanvas" style="background: white; padding: 10px; border-radius: 4px;"></canvas>
+                    <div style="width: 100%; text-align: center;">
+                        <canvas id="adminBarcodeCanvas" style="background: white; padding: 10px; border-radius: 4px; max-width: 100%; height: auto;"></canvas>
                     </div>
                 </div>
                 `;
@@ -1128,6 +1128,15 @@
                 <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
                     <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Driver's License Barcode</div>
                     <div style="font-size: 24px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; letter-spacing: 2px;">${customer.barcode}</div>
+                </div>
+                `;
+            }
+            // Always show section even if empty (to diagnose missing data)
+            else {
+                barcodeHTML = `
+                <div style="background: var(--bg-main); border: 1px dashed var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; color: var(--text-muted);">
+                    <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Barcode Data</div>
+                    <div>No barcode data available for this customer</div>
                 </div>
                 `;
             }
@@ -1198,8 +1207,8 @@
                      bwipjs.toCanvas('adminBarcodeCanvas', {
                          bcid: 'pdf417',
                          text: barcodeContent,
-                         scale: 4,
-                         height: 30,
+                         scale: 3,
+                         height: 10,
                          includetext: false,
                          textxalign: 'center',
                          padding: 10

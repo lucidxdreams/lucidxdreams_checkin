@@ -2894,8 +2894,9 @@
 
                          const canvas = document.createElement('canvas');
                          canvas.id = 'flowhubBarcode';
-                         // Do NOT set max-width: 100% here, as it causes aliasing/unscannable barcodes
-                         // instead we use the scrollWrapper to handle overflow
+                         // Set max-width to ensure it fits on screen, but maintain high resolution canvas
+                         canvas.style.maxWidth = '100%';
+                         canvas.style.height = 'auto';
                          canvas.style.display = 'inline-block';
                          canvas.style.background = 'white'; // Contrast
 
@@ -2931,12 +2932,12 @@
 
                          try {
                              // Use bwip-js to render PDF417
-                             // Increased scale and height for better scanner readability
+                             // Scale 3 balances readability and size
                              bwipjs.toCanvas(canvas, {
                                  bcid:        'pdf417',       // Barcode type
                                  text:        barcodeContent, // Text to encode
-                                 scale:       4,              // 4x scaling factor (High Res)
-                                 height:      30,             // 30mm height (Taller)
+                                 scale:       3,              // 3x scaling factor (Good balance)
+                                 height:      10,             // Aspect ratio height (relative to width)
                                  includetext: false,          // No text below
                                  textxalign:  'center',
                                  padding:     10,             // White space padding
