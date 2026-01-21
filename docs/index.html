@@ -2894,9 +2894,8 @@
 
                          const canvas = document.createElement('canvas');
                          canvas.id = 'flowhubBarcode';
-                         // Set max-width to ensure it fits on screen, but maintain high resolution canvas
-                         canvas.style.maxWidth = '100%';
-                         canvas.style.height = 'auto';
+                         // Do not constrain width - allow it to overflow in the scroll container
+                         // This preserves the exact PDF417 aspect ratio and module size for scanning
                          canvas.style.display = 'inline-block';
                          canvas.style.background = 'white'; // Contrast
 

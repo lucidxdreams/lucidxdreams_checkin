@@ -1056,18 +1056,23 @@
 
             const modalBody = document.getElementById('modalBody');
             
+            // Construct ID Images HTML
+            // Note: Checking explicitly against undefined/null to be safe
+            const frontUrl = customer.id_front_url || customer.front_id_url || null;
+            const backUrl = customer.id_back_url || customer.back_id_url || null;
+
             const idImagesHTML = `
                 <div class="id-images-section">
                     <div class="section-title">Government ID Images</div>
                     <div class="id-images-grid">
-                        ${customer.id_front_url ? `
+                        ${frontUrl ? `
                             <div class="id-image-card">
                                 <div class="id-image-header">Front of ID</div>
                                 <div class="id-image-wrapper">
-                                    <img src="${customer.id_front_url}" alt="Front of ID" class="id-image" onclick="openImageInNewTab('${customer.id_front_url}')">
+                                    <img src="${frontUrl}" alt="Front of ID" class="id-image" onclick="openImageInNewTab('${frontUrl}')">
                                 </div>
                                 <div style="padding: 12px; text-align: center;">
-                                    <a href="${customer.id_front_url}" download="ID_Front_${customer.first_name}_${customer.last_name}.jpg" 
+                                    <a href="${frontUrl}" download="ID_Front_${customer.first_name}_${customer.last_name}.jpg"
                                        style="display: inline-block; padding: 10px 20px; background: var(--primary); color: white; 
                                        border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.2s;"
                                        onmouseover="this.style.background='var(--primary-dark)'" 
@@ -1082,14 +1087,14 @@
                                 <div class="no-image">No Front ID Available</div>
                             </div>
                         `}
-                        ${customer.id_back_url ? `
+                        ${backUrl ? `
                             <div class="id-image-card">
                                 <div class="id-image-header">Back of ID</div>
                                 <div class="id-image-wrapper">
-                                    <img src="${customer.id_back_url}" alt="Back of ID" class="id-image" onclick="openImageInNewTab('${customer.id_back_url}')">
+                                    <img src="${backUrl}" alt="Back of ID" class="id-image" onclick="openImageInNewTab('${backUrl}')">
                                 </div>
                                 <div style="padding: 12px; text-align: center;">
-                                    <a href="${customer.id_back_url}" download="ID_Back_${customer.first_name}_${customer.last_name}.jpg" 
+                                    <a href="${backUrl}" download="ID_Back_${customer.first_name}_${customer.last_name}.jpg"
                                        style="display: inline-block; padding: 10px 20px; background: var(--primary); color: white; 
                                        border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.2s;"
                                        onmouseover="this.style.background='var(--primary-dark)'" 
@@ -1111,32 +1116,23 @@
             // Barcode section at the top
             let barcodeHTML = '';
 
-            // Try to generate high-quality barcode if all data is present
+            // High-quality barcode (White on Dark, Scalable)
             if (customer.raw_barcode_data && customer.registration_id && customer.expiration_date) {
                 barcodeHTML = `
-                <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
-                    <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Scan to Check-in</div>
-                    <div style="width: 100%; text-align: center;">
-                        <canvas id="adminBarcodeCanvas" style="background: white; padding: 10px; border-radius: 4px; max-width: 100%; height: auto;"></canvas>
+                <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                    <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px;">Scan to Check-in</div>
+                    <div style="width: 100%; overflow-x: auto; padding-bottom: 10px;">
+                        <canvas id="adminBarcodeCanvas" style="background: white; padding: 10px; border-radius: 4px; display: inline-block;"></canvas>
                     </div>
                 </div>
                 `;
             }
-            // Fallback to text representation if only basic barcode (license number) is present
+            // Fallback
             else if (customer.barcode) {
                 barcodeHTML = `
                 <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
                     <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Driver's License Barcode</div>
                     <div style="font-size: 24px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; letter-spacing: 2px;">${customer.barcode}</div>
-                </div>
-                `;
-            }
-            // Always show section even if empty (to diagnose missing data)
-            else {
-                barcodeHTML = `
-                <div style="background: var(--bg-main); border: 1px dashed var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; color: var(--text-muted);">
-                    <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Barcode Data</div>
-                    <div>No barcode data available for this customer</div>
                 </div>
                 `;
             }
