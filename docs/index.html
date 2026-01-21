@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- BWIP-JS for Barcode Generation -->
+    <script src="https://cdn.jsdelivr.net/npm/bwip-js@3.0.4/dist/bwip-js-min.js"></script>
     <style>
         :root {
             /* Logo Colors - Green and Orange/Gold */
@@ -1945,6 +1947,7 @@
             let frontImageFile = null;
             let backImageFile = null;
             let barcodeData = null; // Store barcode data from back of ID
+            let rawBarcodeText = null; // Store raw AAMVA text
             let selectedLocation = null; // Store selected location
             let currentUploadType = null;
             let customerRecord = null;
@@ -2368,6 +2371,7 @@
             // Barcode scan success
             async function onBarcodeScanSuccess(decodedText) {
                 stopLiveScanner();
+                rawBarcodeText = decodedText; // Capture raw text
 
                 // UI Updates
                 const scannerFrame = document.getElementById('scannerFrame');
@@ -2513,6 +2517,9 @@
                     document.getElementById('manualUploadSection').style.display = 'none';
 
                     if (result.success) {
+                        if (result.rawBarcodeText) {
+                             rawBarcodeText = result.rawBarcodeText;
+                        }
                         onBarcodeScanSuccessLogic(result.data); // Reuse success logic
                     } else {
                         throw new Error(result.error);
@@ -2868,6 +2875,60 @@
                     document.getElementById('step3Header').style.display = 'none';
                     document.getElementById('checkinForm').style.display = 'none';
                     document.getElementById('checkinSuccess').style.display = 'block';
+
+                    // Generate Flowhub Barcode
+                    if (rawBarcodeText) {
+                         // Construct data: Raw ID Data + Tab + Reg ID + Tab + Exp Date
+                         const barcodeContent = rawBarcodeText + '\t' + regId + '\t' + expDate;
+
+                         const canvas = document.createElement('canvas');
+                         canvas.id = 'flowhubBarcode';
+                         canvas.style.maxWidth = '100%';
+                         canvas.style.height = 'auto';
+
+                         // Container for the barcode
+                         const barcodeContainer = document.createElement('div');
+                         barcodeContainer.style.marginTop = '24px';
+                         barcodeContainer.style.padding = '20px';
+                         barcodeContainer.style.background = 'white';
+                         barcodeContainer.style.borderRadius = '12px';
+                         barcodeContainer.style.textAlign = 'center';
+                         barcodeContainer.style.boxShadow = '0 8px 30px rgba(0,0,0,0.3)';
+
+                         const label = document.createElement('div');
+                         label.textContent = 'Scan to Check-in:';
+                         label.style.color = '#333';
+                         label.style.fontWeight = '700';
+                         label.style.marginBottom = '12px';
+                         label.style.fontSize = '16px';
+                         label.style.textTransform = 'uppercase';
+                         label.style.letterSpacing = '1px';
+
+                         barcodeContainer.appendChild(label);
+                         barcodeContainer.appendChild(canvas);
+
+                         const successDiv = document.getElementById('checkinSuccess');
+                         // Remove any existing barcode container if present (retry scenario)
+                         const existing = successDiv.querySelector('#flowhubBarcodeContainer');
+                         if (existing) existing.remove();
+
+                         barcodeContainer.id = 'flowhubBarcodeContainer';
+                         successDiv.appendChild(barcodeContainer);
+
+                         try {
+                             bwipjs.toCanvas(canvas, {
+                                 bcid:        'pdf417',       // Barcode type
+                                 text:        barcodeContent, // Text to encode
+                                 scale:       2,              // 2x scaling factor
+                                 height:      10,             // Bar height, in millimeters
+                                 includetext: false,          // Show human-readable text
+                                 textxalign:  'center',       // Always good to set this
+                             });
+                         } catch (e) {
+                             console.error('Barcode generation error:', e);
+                         }
+                    }
+
                 } catch (error) {
                     console.error('Error during check-in:', error);
                     alert('Error completing check-in: ' + error.message);
