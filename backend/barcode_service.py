@@ -689,6 +689,7 @@ def extract_id_from_barcode(image_base64: str) -> Dict:
         return {
             'success': True,
             'data': extracted_data,
+            'rawBarcodeText': barcode_text,
             'isDC': is_dc,
             'scanEngine': engine,
             'processingTime': round(elapsed, 3)
