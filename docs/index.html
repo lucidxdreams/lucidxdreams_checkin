@@ -2731,6 +2731,7 @@
                         idImageBase64: e.target.result,
                         idImageBackBase64: backImageBase64,
                         barcode: barcodeData,
+                        rawBarcodeData: rawBarcodeText,
                         location: selectedLocation,
                         residentType: residentType,
                         timePeriod: residentType === 'nondc' ? document.getElementById('timePeriod').value : null
@@ -2815,6 +2816,7 @@
                             registrationId: regId,
                             expirationDate: expDate,
                             barcode: barcodeData,
+                            rawBarcodeData: rawBarcodeText,
                             location: selectedLocation
                         };
 
@@ -2850,6 +2852,7 @@
                             registrationId: regId,
                             expirationDate: expDate,
                             barcode: barcodeData,
+                            rawBarcodeData: rawBarcodeText,
                             location: selectedLocation
                         };
 
