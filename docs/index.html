@@ -2740,16 +2740,27 @@
 
                         if (result.success) {
                             // Backend stores customer + images and returns customerId
-                            if (result.customerId && supabaseClient) {
-                                // Fetch the complete customer record with image URLs
-                                const { data } = await supabaseClient
-                                    .from('customers')
-                                    .select('*')
-                                    .eq('id', result.customerId)
-                                    .single();
-                                if (data) {
-                                    customerRecord = data;
-                                    console.log('Customer record retrieved with images:', customerRecord.id);
+                            if (result.customerId) {
+                                // Set customer record with at least the ID so check-in knows which record to update
+                                customerRecord = { id: result.customerId };
+                                console.log('Customer ID set from response:', customerRecord.id);
+
+                                // If supabase client is available, try to fetch full details (but don't block if it fails)
+                                if (supabaseClient) {
+                                    try {
+                                        // Fetch the complete customer record with image URLs
+                                        const { data } = await supabaseClient
+                                            .from('customers')
+                                            .select('*')
+                                            .eq('id', result.customerId)
+                                            .single();
+                                        if (data) {
+                                            customerRecord = data;
+                                            console.log('Full customer record retrieved:', customerRecord.id);
+                                        }
+                                    } catch (fetchError) {
+                                        console.warn('Could not fetch full customer details, continuing with ID only', fetchError);
+                                    }
                                 }
                             }
 
