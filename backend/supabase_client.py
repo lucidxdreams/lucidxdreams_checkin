@@ -144,7 +144,17 @@ class SupabaseManager:
             db_data = {k: v for k, v in db_data.items() if v is not None}
 
             # Insert into database
-            response = self.client.table('customers').insert(db_data).execute()
+            try:
+                response = self.client.table('customers').insert(db_data).execute()
+            except Exception as e:
+                # Handle PGRST204: Missing column 'raw_barcode_data'
+                if 'raw_barcode_data' in str(e) or (hasattr(e, 'code') and e.code == 'PGRST204'):
+                    logger.warning("Column 'raw_barcode_data' not found, retrying without it.")
+                    if 'raw_barcode_data' in db_data:
+                        del db_data['raw_barcode_data']
+                    response = self.client.table('customers').insert(db_data).execute()
+                else:
+                    raise e
             
             if response.data and len(response.data) > 0:
                 customer_id = response.data[0]['id']
@@ -209,7 +219,17 @@ class SupabaseManager:
             return False
         
         try:
-            response = self.client.table('customers').update(checkin_data).eq('id', customer_id).execute()
+            try:
+                response = self.client.table('customers').update(checkin_data).eq('id', customer_id).execute()
+            except Exception as e:
+                # Handle PGRST204: Missing column 'raw_barcode_data'
+                if 'raw_barcode_data' in str(e) or (hasattr(e, 'code') and e.code == 'PGRST204'):
+                    logger.warning("Column 'raw_barcode_data' not found in update, retrying without it.")
+                    if 'raw_barcode_data' in checkin_data:
+                        del checkin_data['raw_barcode_data']
+                    response = self.client.table('customers').update(checkin_data).eq('id', customer_id).execute()
+                else:
+                    raise e
             
             if response.data:
                 logger.info(f"Updated customer {customer_id} with check-in data: {list(checkin_data.keys())}")
