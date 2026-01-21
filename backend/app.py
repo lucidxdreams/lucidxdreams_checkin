@@ -564,11 +564,16 @@ def complete_checkin():
     
     Request body:
     {
-        "customerId": 123,
+        "customerId": 123,  # Optional if new customer (Existing Card Holder)
         "registrationId": "REG123456",
         "expirationDate": "2024-12-31",
         "barcode": "123456789",
-        "location": "3106 Mt Pleasant St NW"
+        "location": "3106 Mt Pleasant St NW",
+        # Required if customerId is missing:
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com",
+        "phoneNumber": "(202) 555-0123"
     }
     
     Response:
@@ -582,24 +587,29 @@ def complete_checkin():
         if not data:
             return jsonify({'success': False, 'error': 'No data provided'}), 400
         
-        # Validate required fields
-        customer_id = data.get('customerId')
+        # Validate required check-in fields
         registration_id = data.get('registrationId')
         expiration_date = data.get('expirationDate')
-        
-        if not customer_id:
-            return jsonify({'success': False, 'error': 'Customer ID is required'}), 400
         
         if not registration_id:
             return jsonify({'success': False, 'error': 'Registration ID is required'}), 400
         
         if not expiration_date:
             return jsonify({'success': False, 'error': 'Expiration date is required'}), 400
-        
-        # Update customer record in Supabase
+
+        customer_id = data.get('customerId')
         supabase_manager = get_supabase_manager()
-        if supabase_manager and supabase_manager.is_configured():
-            try:
+
+        if not supabase_manager or not supabase_manager.is_configured():
+            logger.warning("Supabase not configured - check-in data not saved")
+            return jsonify({
+                'success': False,
+                'error': 'Database not available'
+            }), 500
+
+        try:
+            # Case 1: Existing customer (Application submitted or previous record)
+            if customer_id:
                 update_data = {
                     'registration_id': registration_id,
                     'expiration_date': expiration_date,
@@ -609,7 +619,7 @@ def complete_checkin():
                     'checked_in_at': datetime.now().isoformat()
                 }
                 
-                # Remove None values to avoid overwriting existing data
+                # Remove None values
                 update_data = {k: v for k, v in update_data.items() if v is not None}
                 
                 success = supabase_manager.update_customer_checkin(customer_id, update_data)
@@ -626,18 +636,53 @@ def complete_checkin():
                         'success': False,
                         'error': 'Failed to update customer record'
                     }), 500
+
+            # Case 2: New customer check-in (Existing Card Holder)
+            else:
+                # Validate required customer fields for new record
+                required_new = ['firstName', 'lastName', 'email']
+                missing = [f for f in required_new if not data.get(f)]
+                if missing:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Missing customer fields: {", ".join(missing)}'
+                    }), 400
+
+                # Prepare full customer data
+                new_customer_data = {
+                    'firstName': data.get('firstName'),
+                    'lastName': data.get('lastName'),
+                    'email': data.get('email'),
+                    'phoneNumber': data.get('phoneNumber'),
+                    'registrationId': registration_id,
+                    'expirationDate': expiration_date,
+                    'barcode': data.get('barcode'),
+                    'location': data.get('location'),
+                    'checkedInAt': datetime.now().isoformat()
+                }
+
+                # Store new customer with 'checked_in' status
+                new_id = supabase_manager.store_customer(new_customer_data, status='checked_in')
+
+                if new_id:
+                    logger.info(f"Created new checked-in customer: ID {new_id}")
+                    return jsonify({
+                        'success': True,
+                        'message': 'Check-in completed successfully',
+                        'customerId': new_id
+                    }), 200
+                else:
+                    logger.error("Failed to create new customer record")
+                    return jsonify({
+                        'success': False,
+                        'error': 'Failed to create customer record'
+                    }), 500
                     
-            except Exception as e:
-                logger.error(f"Supabase check-in update error: {e}")
-                return jsonify({
-                    'success': False,
-                    'error': f'Database update failed: {str(e)}'
-                }), 500
-        else:
-            logger.warning("Supabase not configured - check-in data not saved")
+        except Exception as e:
+            logger.error(f"Supabase check-in error: {e}")
             return jsonify({
                 'success': False,
-                'error': 'Database not available'
+                'error': f'Database operation failed: {str(e)}'
             }), 500
             
     except Exception as e:
