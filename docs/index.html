@@ -1912,12 +1912,20 @@
             // CONFIGURATION - Set via environment or inline
             // These values should be injected at build/deploy time
             // ============================================
+
+            // Production Fallback URL (if env-config.js fails to load)
+            const PROD_API_URL = 'https://lucidxdreamscheckin-production.up.railway.app';
+
             const CONFIG = {
                 // Supabase - leave empty to disable, or set via deployment environment
                 SUPABASE_URL: window.ENV_SUPABASE_URL || '',
                 SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || '',
-                // Backend API URL
-                API_BASE_URL: window.ENV_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5001' : '')
+                // Backend API URL:
+                // 1. Env Config (priority)
+                // 2. Localhost detection
+                // 3. Production Fallback
+                API_BASE_URL: window.ENV_API_BASE_URL ||
+                              (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:5001' : PROD_API_URL)
             };
 
             let supabaseClient = null;
