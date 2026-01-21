@@ -102,12 +102,13 @@ class SupabaseManager:
             logger.error(f"Failed to upload {side} ID image: {e}", exc_info=True)
             return None
     
-    def store_customer(self, customer_data: Dict) -> Optional[int]:
+    def store_customer(self, customer_data: Dict, status: str = 'pending') -> Optional[int]:
         """
         Store customer data in database
         
         Args:
             customer_data: Dictionary with customer information
+            status: Initial status (default: 'pending')
         
         Returns:
             Customer ID if successful, None if failed
@@ -131,9 +132,16 @@ class SupabaseManager:
                 'resident_type': customer_data.get('residentType', 'dc'),
                 'barcode': customer_data.get('barcode'),
                 'location': customer_data.get('location'),
-                'status': 'pending'
+                'status': status,
+                # Include registration details if provided (for direct check-in)
+                'registration_id': customer_data.get('registrationId'),
+                'expiration_date': customer_data.get('expirationDate'),
+                'checked_in_at': customer_data.get('checkedInAt')
             }
             
+            # Remove None values
+            db_data = {k: v for k, v in db_data.items() if v is not None}
+
             # Insert into database
             response = self.client.table('customers').insert(db_data).execute()
             

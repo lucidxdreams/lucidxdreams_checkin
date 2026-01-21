@@ -140,9 +140,18 @@ class QuickBaseFormAutomation:
                 logger.info(f"Navigating to {resident_type.upper()} form: {form_url}")
                 page.goto(form_url, wait_until='networkidle', timeout=30000)
                 
+                # Capture console messages for debugging
+                console_messages = []
+                page.on("console", lambda msg: console_messages.append(f"{msg.type}: {msg.text}"))
+
                 # Wait for form to be ready
-                page.wait_for_selector('form[name="qdbform"]', timeout=10000)
-                logger.info("Form loaded successfully")
+                try:
+                    page.wait_for_selector('form[name="qdbform"]', timeout=10000)
+                    logger.info("Form loaded successfully")
+                except PlaywrightTimeout:
+                    logger.error("Timeout waiting for form to load. QuickBase might be down or URL changed.")
+                    page.screenshot(path=f"form_load_timeout_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                    raise
                 
                 # Fill Section 1: Patient Information
                 logger.info("Filling patient information...")
@@ -338,10 +347,6 @@ class QuickBaseFormAutomation:
                         }
                     
                     logger.info("No validation errors found. Submitting form...")
-                    
-                    # Capture console errors
-                    console_messages = []
-                    page.on("console", lambda msg: console_messages.append(f"{msg.type}: {msg.text}"))
                     
                     # Check if submit button is enabled
                     submit_btn = page.query_selector('input[type="submit"]')

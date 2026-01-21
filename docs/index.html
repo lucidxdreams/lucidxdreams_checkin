@@ -1912,12 +1912,20 @@
             // CONFIGURATION - Set via environment or inline
             // These values should be injected at build/deploy time
             // ============================================
+
+            // Production Fallback URL (if env-config.js fails to load)
+            const PROD_API_URL = 'https://lucidxdreamscheckin-production.up.railway.app';
+
             const CONFIG = {
                 // Supabase - leave empty to disable, or set via deployment environment
                 SUPABASE_URL: window.ENV_SUPABASE_URL || '',
                 SUPABASE_ANON_KEY: window.ENV_SUPABASE_ANON_KEY || '',
-                // Backend API URL
-                API_BASE_URL: window.ENV_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://127.0.0.1:5001' : '')
+                // Backend API URL:
+                // 1. Env Config (priority)
+                // 2. Localhost detection
+                // 3. Production Fallback
+                API_BASE_URL: window.ENV_API_BASE_URL ||
+                              (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:5001' : PROD_API_URL)
             };
 
             let supabaseClient = null;
@@ -2815,27 +2823,33 @@
                         }
                     } else {
                         // New check-in (existing card holder who skipped application)
-                        // This case shouldn't happen with current flow, but handle it
+                        // Use backend API to ensure status='checked_in' is respected (bypassing RLS issues)
                         const checkinData = {
-                            first_name: document.getElementById('firstName').value || scannedData.firstName,
-                            last_name: document.getElementById('lastName').value || scannedData.lastName,
-                            phone: document.getElementById('phone').value,
+                            firstName: document.getElementById('firstName').value || scannedData.firstName,
+                            lastName: document.getElementById('lastName').value || scannedData.lastName,
+                            phoneNumber: document.getElementById('phone').value,
                             email: document.getElementById('email').value,
-                            registration_id: regId,
-                            expiration_date: expDate,
-                            has_existing_card: hasExistingCard,
+                            registrationId: regId,
+                            expirationDate: expDate,
                             barcode: barcodeData,
-                            location: selectedLocation,
-                            status: 'checked_in',
-                            checked_in_at: new Date().toISOString()
+                            location: selectedLocation
                         };
 
-                        if (supabaseClient) {
-                            const insertResult = await supabaseClient.from('customers').insert([checkinData]).select();
-                            if (insertResult.data && insertResult.data.length > 0) {
-                                customerRecord = insertResult.data[0];
-                                console.log('New customer record created for existing card holder:', customerRecord.id);
+                        const response = await fetch(`${API_BASE_URL}/api/complete-checkin`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(checkinData)
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            console.log('New customer check-in completed via backend');
+                            if (result.customerId) {
+                                customerRecord = { id: result.customerId };
                             }
+                        } else {
+                            throw new Error(result.error || 'Check-in failed');
                         }
                     }
 
