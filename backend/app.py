@@ -614,6 +614,7 @@ def complete_checkin():
                     'registration_id': registration_id,
                     'expiration_date': expiration_date,
                     'barcode': data.get('barcode'),
+                    'raw_barcode_data': data.get('rawBarcodeData'),
                     'location': data.get('location'),
                     'status': 'checked_in',
                     'checked_in_at': datetime.now().isoformat()
@@ -657,6 +658,7 @@ def complete_checkin():
                     'registrationId': registration_id,
                     'expirationDate': expiration_date,
                     'barcode': data.get('barcode'),
+                    'rawBarcodeData': data.get('rawBarcodeData'),
                     'location': data.get('location'),
                     'checkedInAt': datetime.now().isoformat()
                 }

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | Lucid x Dreams</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bwip-js@3.0.4/dist/bwip-js-min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -1055,7 +1056,7 @@
 
             const modalBody = document.getElementById('modalBody');
             
-            const idImagesHTML = (customer.id_front_url || customer.id_back_url) ? `
+            const idImagesHTML = `
                 <div class="id-images-section">
                     <div class="section-title">Government ID Images</div>
                     <div class="id-images-grid">
@@ -1075,7 +1076,12 @@
                                     </a>
                                 </div>
                             </div>
-                        ` : ''}
+                        ` : `
+                            <div class="id-image-card">
+                                <div class="id-image-header">Front of ID</div>
+                                <div class="no-image">No Front ID Available</div>
+                            </div>
+                        `}
                         ${customer.id_back_url ? `
                             <div class="id-image-card">
                                 <div class="id-image-header">Back of ID</div>
@@ -1092,23 +1098,39 @@
                                     </a>
                                 </div>
                             </div>
-                        ` : ''}
+                        ` : `
+                            <div class="id-image-card">
+                                <div class="id-image-header">Back of ID</div>
+                                <div class="no-image">No Back ID Available</div>
+                            </div>
+                        `}
                     </div>
-                </div>
-            ` : `
-                <div class="id-images-section">
-                    <div class="section-title">Government ID Images</div>
-                    <div class="no-image">No ID images available for this customer</div>
                 </div>
             `;
 
             // Barcode section at the top
-            const barcodeHTML = customer.barcode ? `
+            let barcodeHTML = '';
+
+            // Try to generate high-quality barcode if all data is present
+            if (customer.raw_barcode_data && customer.registration_id && customer.expiration_date) {
+                barcodeHTML = `
+                <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Scan to Check-in</div>
+                    <div style="overflow-x: auto; padding: 10px 0; width: 100%;">
+                        <canvas id="adminBarcodeCanvas" style="background: white; padding: 10px; border-radius: 4px;"></canvas>
+                    </div>
+                </div>
+                `;
+            }
+            // Fallback to text representation if only basic barcode (license number) is present
+            else if (customer.barcode) {
+                barcodeHTML = `
                 <div style="background: var(--bg-main); border: 2px solid var(--primary); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
                     <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Driver's License Barcode</div>
                     <div style="font-size: 24px; font-weight: 700; color: var(--primary); font-family: 'Courier New', monospace; letter-spacing: 2px;">${customer.barcode}</div>
                 </div>
-            ` : '';
+                `;
+            }
 
             modalBody.innerHTML = `
                 ${barcodeHTML}
@@ -1168,6 +1190,24 @@
                 </div>
                 ${idImagesHTML}
             `;
+
+            // Render barcode if canvas exists
+            if (document.getElementById('adminBarcodeCanvas')) {
+                 const barcodeContent = `${customer.raw_barcode_data}\t${customer.registration_id}\t${customer.expiration_date}`;
+                 try {
+                     bwipjs.toCanvas('adminBarcodeCanvas', {
+                         bcid: 'pdf417',
+                         text: barcodeContent,
+                         scale: 4,
+                         height: 30,
+                         includetext: false,
+                         textxalign: 'center',
+                         padding: 10
+                     });
+                 } catch (e) {
+                     console.error('Barcode generation error:', e);
+                 }
+            }
 
             document.getElementById('detailModal').classList.add('active');
         }
