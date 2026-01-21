@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Tuple, Optional
-from PIL import Image
+from PIL import Image, ImageEnhance
 import numpy as np
 
 logging.basicConfig(level=logging.INFO)
@@ -127,20 +127,101 @@ def process_barcode_image(image_base64: str) -> Image.Image:
     return image
 
 
+def crop_to_id_card(image: Image.Image) -> Optional[Image.Image]:
+    """
+    Attempt to detect ID card boundary and crop to it using OpenCV.
+    Returns None if no clear card boundary found.
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        # Convert to cv2
+        img_cv = np.array(image)
+        img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+
+        # Preprocessing
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+        # Edge detection
+        edged = cv2.Canny(blur, 75, 200)
+
+        # Find contours
+        contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            return None
+
+        # Sort by area
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+
+        # Find the largest rectangular contour that looks like an ID
+        card_contour = None
+        img_area = image.width * image.height
+
+        for c in contours[:5]: # Check top 5 largest
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+            area = cv2.contourArea(c)
+
+            # ID card is rectangular (4 points)
+            # Area should be significant (e.g. > 10% of image) but not the whole image (> 95%)
+            if len(approx) == 4 and (0.10 * img_area) < area < (0.95 * img_area):
+                card_contour = approx
+                break
+
+        if card_contour is not None:
+            # Get bounding box
+            x, y, w, h = cv2.boundingRect(card_contour)
+
+            # Add a small padding (margin)
+            padding = 20
+            x = max(0, x - padding)
+            y = max(0, y - padding)
+            w = min(image.width - x, w + (padding * 2))
+            h = min(image.height - y, h + (padding * 2))
+
+            # Crop
+            cropped = image.crop((x, y, x+w, y+h))
+            logger.info(f"Smart ROI: Cropped to detected card ({w}x{h})")
+            return cropped
+
+    except Exception as e:
+        logger.warning(f"Smart ROI detection failed: {e}")
+
+    return None
+
+
 def preprocess_for_barcode(image: Image.Image) -> list:
     """
     Create multiple preprocessed versions of image for better barcode detection using OpenCV.
     PDF417 barcodes need good contrast and proper orientation.
     Optimized for mobile photos where barcode may be near edge of frame.
     """
-    import cv2
-    import numpy as np
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        logger.warning("OpenCV not available for preprocessing")
+        # Return basic grayscale if CV2 is missing
+        return [(image.convert('L'), "pil_gray")]
     
     # Limit variants to the most effective ones for speed
     variants = []
     
-    # Convert PIL directly to numpy
-    img_cv = np.array(image)
+    # 0. Smart ROI Crop (First priority)
+    # If we can find the card, crop to it. This improves resolution effectively.
+    roi_image = crop_to_id_card(image)
+    if roi_image:
+        variants.append((roi_image, "smart_roi_crop"))
+        # Use the cropped image as base for subsequent operations if found
+        base_image = roi_image
+    else:
+        base_image = image
+
+    # Convert PIL directly to numpy for OpenCV ops
+    img_cv = np.array(base_image)
     if len(img_cv.shape) == 3:
         # Check RGB vs BGR (PIL is RGB, OpenCV assumes BGR for some ops, but for gray it matters)
         # Using cv2.COLOR_RGB2GRAY since PIL is RGB
@@ -150,27 +231,41 @@ def preprocess_for_barcode(image: Image.Image) -> list:
         
     height, width = gray.shape
 
-    # 1. Grayscale (Native)
+    # 1. Grayscale (Native) - Basic
     variants.append((Image.fromarray(gray), "cv_gray"))
     
-    # 2. Thresholding (very effective for barcodes)
+    # 2. Sharpening (Helpful for slightly blurry focus)
+    kernel_sharpen = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+    sharpened = cv2.filter2D(gray, -1, kernel_sharpen)
+    variants.append((Image.fromarray(sharpened), "cv_sharpened"))
+
+    # 3. Thresholding (very effective for barcodes)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY, 21, 10)
     variants.append((Image.fromarray(thresh), "cv_adaptive_thresh"))
     
-    # 3. Upscaled (only if small and needed)
-    if width < 1200:
+    # 4. Upscaled (only if small and needed)
+    if width < 1500: # Increased threshold for upscaling
          upscaled = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
          variants.append((Image.fromarray(upscaled), "cv_upscaled_2x"))
 
-    # 4. Rotated (Limited angles for speed)
-    for angle in [2, -2]:
-         center = (width // 2, height // 2)
-         M = cv2.getRotationMatrix2D(center, angle, 1.0)
-         rotated = cv2.warpAffine(gray, M, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=255)
-         variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
-    
+    # 5. Smart Rotation (0, 90, 180, 270)
+    # Only rotate the best candidates (Gray and Threshold) to save time
+    for angle in [90, 180, 270]:
+        if angle == 90:
+            rotated = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
+            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_90_CLOCKWISE)
+        elif angle == 180:
+            rotated = cv2.rotate(gray, cv2.ROTATE_180)
+            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_180)
+        elif angle == 270:
+            rotated = cv2.rotate(gray, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+        variants.append((Image.fromarray(rotated), f"cv_rotated_{angle}"))
+        variants.append((Image.fromarray(rotated_thresh), f"cv_rotated_{angle}_thresh"))
+
     return variants
 
 
@@ -343,47 +438,6 @@ def decode_barcode(image: Image.Image) -> Tuple[Optional[str], str]:
     return None, 'none'
 
 
-def parse_aamva_barcode(barcode_text: str) -> Dict:
-    """
-    Parse AAMVA-compliant barcode data from driver's license
-    
-    AAMVA Format:
-    @\n\x1e\rANSI 636049030002DL00410466ZN05070057DL...
-    
-    Args:
-        barcode_text: Raw barcode text from PDF417
-        
-    Returns:
-        Dictionary with parsed fields
-    """
-    logger.info(f"Parsing AAMVA barcode data ({len(barcode_text)} chars)")
-    
-    # Remove header garbage if present to find the "ANSI" marker
-    # Many scanners start with compliance indicators like @
-    
-    # robust cleanup - keep alphanumeric and special chars used in IDs
-    # But AAMVA relies on newlines (\n) or \r as delimiters sometimes.
-    # We should be careful cleaning.
-    
-    clean_text = barcode_text
-    
-    parsed_data = {}
-    
-    # Direct Regex Strategy: Look for the specific field codes followed by data
-    # Standard codes:
-    # DCS: Last Name
-    # DAC: First Name
-    # DAD: Middle Name
-    # DBB: DOB (MMDDYYYY)
-    # DAG: Address
-    # DAI: City
-    # DAJ: State
-    # DAK: Zip
-    
-    # We utilize a flexible regex that looks for the 3-letter code, 
-    # and captures everything until the next likely 3-letter code (starts with D or Z usually)
-    # or a newline/terminator.
-    
 def parse_aamva_barcode(barcode_text: str) -> Dict:
     """
     Parse AAMVA-compliant barcode data from driver's license
