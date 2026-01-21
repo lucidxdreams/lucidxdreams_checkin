@@ -210,7 +210,10 @@ def preprocess_for_barcode(image: Image.Image) -> list:
     # Limit variants to the most effective ones for speed
     variants = []
     
-    # 0. Smart ROI Crop (First priority)
+    # 0. Check Orientation
+    is_portrait = image.height > image.width
+
+    # 1. Smart ROI Crop (First priority)
     # If we can find the card, crop to it. This improves resolution effectively.
     roi_image = crop_to_id_card(image)
     if roi_image:
@@ -231,28 +234,48 @@ def preprocess_for_barcode(image: Image.Image) -> list:
         
     height, width = gray.shape
 
-    # 1. Grayscale (Native) - Basic
+    # 2. Grayscale (Native) - Basic
     variants.append((Image.fromarray(gray), "cv_gray"))
     
-    # 2. Sharpening (Helpful for slightly blurry focus)
+    # CRITICAL: If portrait, add 90-degree rotation IMMEDIATELY
+    # Most barcode scanners work best with horizontal barcodes
+    if is_portrait:
+        rotated_90 = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
+        variants.append((Image.fromarray(rotated_90), "cv_gray_rotated_90_priority"))
+
+    # 3. Sharpening (Helpful for slightly blurry focus)
     kernel_sharpen = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
     sharpened = cv2.filter2D(gray, -1, kernel_sharpen)
     variants.append((Image.fromarray(sharpened), "cv_sharpened"))
 
-    # 3. Thresholding (very effective for barcodes)
+    # 4. Thresholding (very effective for barcodes)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY, 21, 10)
     variants.append((Image.fromarray(thresh), "cv_adaptive_thresh"))
     
-    # 4. Upscaled (only if small and needed)
-    if width < 1500: # Increased threshold for upscaling
+    # 5. Standardized Scale (Resize to ~1000px width if very large)
+    # High resolution can sometimes introduce noise or be too slow
+    if width > 1500:
+        scale_factor = 1280 / width
+        new_width = 1280
+        new_height = int(height * scale_factor)
+        downscaled = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        variants.append((Image.fromarray(downscaled), "cv_downscaled_1280"))
+
+    # 6. Upscaled (only if small and needed)
+    if width < 1000: # Lowered threshold, but kept logic
          upscaled = cv2.resize(gray, (width*2, height*2), interpolation=cv2.INTER_CUBIC)
          variants.append((Image.fromarray(upscaled), "cv_upscaled_2x"))
 
-    # 5. Smart Rotation (0, 90, 180, 270)
+    # 7. Smart Rotation (0, 90, 180, 270)
     # Only rotate the best candidates (Gray and Threshold) to save time
     for angle in [90, 180, 270]:
+        # Skip 90 if we already did it for portrait
+        if is_portrait and angle == 90:
+            # We already added cv_gray_rotated_90_priority, but we might want thresh version
+            pass
+
         if angle == 90:
             rotated = cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE)
             rotated_thresh = cv2.rotate(thresh, cv2.ROTATE_90_CLOCKWISE)
@@ -300,7 +323,7 @@ def decode_barcode_zxing(image: Image.Image) -> Optional[str]:
                             continue
                         
                         barcode_text = result.text
-                        if barcode_text and len(barcode_text) > 50:  # AAMVA barcodes are long
+                        if barcode_text and len(barcode_text) > 20:  # Relaxed length check slightly, usually > 50
                             elapsed = time.time() - start_time
                             logger.info(f"✅ zxing-cpp decoded PDF417 via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
                             return barcode_text
@@ -314,7 +337,7 @@ def decode_barcode_zxing(image: Image.Image) -> Optional[str]:
                             format_name = result.format.name.upper() if hasattr(result.format, 'name') else str(result.format).upper()
                             if 'PDF417' in format_name or 'PDF_417' in format_name:
                                 barcode_text = result.text
-                                if barcode_text and len(barcode_text) > 50:
+                                if barcode_text and len(barcode_text) > 20:
                                     logger.info(f"✅ zxing-cpp decoded PDF417 via {variant_name} (numpy fallback)")
                                     return barcode_text
                 except Exception:
@@ -342,28 +365,32 @@ def decode_barcode_pdf417decoder(image: Image.Image) -> Optional[str]:
         start_time = time.time()
         
         # pdf417decoder works with PIL images directly
-        decoder = PDF417Decoder(image)
+        # Use a timeout logic? No, just limit variants.
         
-        if decoder.decode() > 0:
-            barcode_text = decoder.barcode_data_index_to_string(0)
-            if barcode_text and len(barcode_text) > 50:
-                elapsed = time.time() - start_time
-                logger.info(f"✅ pdf417decoder decoded barcode in {elapsed:.3f}s ({len(barcode_text)} chars)")
-                return barcode_text
-        
-        # Try with preprocessed variants (but limit attempts to prevent timeout)
-        # Limit to 3 variants max for pdf417decoder as it is very slow
+        # Try with preprocessed variants (but strictly limit attempts to prevent timeout)
+        # Limit to 2 variants max for pdf417decoder as it is very slow
         variants = preprocess_for_barcode(image)
-        for i, (img, variant_name) in enumerate(variants):
-            if i >= 3: break # Optimize speed
+
+        # Prioritize 90 degree rotation for pdf417decoder if portrait, as it handles rotation poorly
+        is_portrait = image.height > image.width
+
+        count = 0
+        for img, variant_name in variants:
+            if count >= 2: break # strict limit
+
+            # Skip high res images for pdf417decoder - it chokes on them
+            if img.width > 1500 or img.height > 1500:
+                continue
+
             try:
                 decoder = PDF417Decoder(img)
                 if decoder.decode() > 0:
                     barcode_text = decoder.barcode_data_index_to_string(0)
-                    if barcode_text and len(barcode_text) > 50:
+                    if barcode_text and len(barcode_text) > 20:
                         elapsed = time.time() - start_time
                         logger.info(f"✅ pdf417decoder decoded via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
                         return barcode_text
+                count += 1
             except Exception:
                 continue
         
@@ -378,29 +405,37 @@ def decode_barcode_pdf417decoder(image: Image.Image) -> Optional[str]:
 
 def decode_barcode_pyzbar(image: Image.Image) -> Optional[str]:
     """
-    Decode PDF417 barcode using pyzbar (fallback)
+    Decode PDF417 barcode using pyzbar (secondary engine)
     """
     try:
         import time
         start_time = time.time()
         
-        results = pyzbar.decode(image)
+        # Preprocessing can help pyzbar too
+        # But for speed, let's just try the base image and maybe one rotation
+        # Or better, iterate through a few key variants since pyzbar is fast
         
-        elapsed = time.time() - start_time
-        
-        if results:
-            for result in results:
-                if result.type == 'PDF417':
-                    barcode_text = result.data.decode('utf-8', errors='ignore')
-                    logger.info(f"pyzbar decoded PDF417 barcode in {elapsed:.3f}s ({len(barcode_text)} chars)")
-                    return barcode_text
+        variants = preprocess_for_barcode(image)
+        # Try top 3 variants
+        for i, (img, variant_name) in enumerate(variants):
+            if i > 3: break
             
-            barcode_text = results[0].data.decode('utf-8', errors='ignore')
-            logger.info(f"pyzbar decoded {results[0].type} barcode in {elapsed:.3f}s")
-            return barcode_text
-        else:
-            logger.warning(f"pyzbar found no barcodes in {elapsed:.3f}s")
-            return None
+            results = pyzbar.decode(img)
+
+            if results:
+                for result in results:
+                    # STRICT TYPE CHECKING
+                    if result.type == 'PDF417':
+                        barcode_text = result.data.decode('utf-8', errors='ignore')
+                        elapsed = time.time() - start_time
+                        logger.info(f"✅ pyzbar decoded PDF417 via {variant_name} in {elapsed:.3f}s ({len(barcode_text)} chars)")
+                        return barcode_text
+                    else:
+                        logger.debug(f"pyzbar found non-PDF417 barcode ({result.type}), ignoring.")
+
+        elapsed = time.time() - start_time
+        logger.warning(f"pyzbar found no PDF417 barcodes in {elapsed:.3f}s")
+        return None
             
     except Exception as e:
         logger.error(f"pyzbar decoding error: {e}")
@@ -410,30 +445,30 @@ def decode_barcode_pyzbar(image: Image.Image) -> Optional[str]:
 def decode_barcode(image: Image.Image) -> Tuple[Optional[str], str]:
     """
     Decode barcode using multiple engines in order of preference:
-    1. zxing-cpp (fastest & most accurate with good image)
-    2. pdf417decoder (specialized fallback)
-    3. pyzbar (last resort)
+    1. zxing-cpp (fastest & most accurate)
+    2. pyzbar (fast fallback)
+    3. pdf417decoder (slowest, last resort)
     """
     # 1. Try zxing-cpp first (fast and accurate)
     if ZXING_AVAILABLE:
         barcode_text = decode_barcode_zxing(image)
         if barcode_text:
             return barcode_text, 'zxing-cpp'
-        logger.info("zxing-cpp failed, trying pdf417decoder...")
+        logger.info("zxing-cpp failed, trying pyzbar...")
     
-    # 2. Try pdf417decoder (specialized for driver's license barcodes)
-    if PDF417_AVAILABLE:
-        barcode_text = decode_barcode_pdf417decoder(image)
-        if barcode_text:
-            return barcode_text, 'pdf417decoder'
-        logger.info("pdf417decoder failed, trying pyzbar...")
-    
-    # 3. Fallback to pyzbar
+    # 2. Try pyzbar (fast fallback)
     if PYZBAR_AVAILABLE:
         barcode_text = decode_barcode_pyzbar(image)
         if barcode_text:
             return barcode_text, 'pyzbar'
-        logger.error("pyzbar also failed")
+        logger.info("pyzbar failed, trying pdf417decoder...")
+
+    # 3. Try pdf417decoder (specialized but slow)
+    if PDF417_AVAILABLE:
+        barcode_text = decode_barcode_pdf417decoder(image)
+        if barcode_text:
+            return barcode_text, 'pdf417decoder'
+        logger.error("pdf417decoder also failed")
     
     return None, 'none'
 
