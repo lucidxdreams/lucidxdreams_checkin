@@ -82,48 +82,6 @@ class QuickBaseFormAutomation:
         logger.info(f"Saved temporary file: {temp_path}")
         return temp_path
 
-    def fill_and_verify(self, page, selector: str, value: str, use_type: bool = False):
-        """
-        Fill a text input and verify its value matches exactly.
-        This ensures fields are correctly filled before proceeding.
-
-        Args:
-            page: Playwright page object
-            selector: CSS selector for the input field
-            value: Value to fill
-            use_type: If True, simulate typing (press_sequentially) instead of filling.
-                     Useful for fields with input masks or special formatting logic.
-        """
-        loc = page.locator(selector)
-        if use_type:
-            loc.click()
-            loc.clear()
-            loc.press_sequentially(value)
-        else:
-            loc.fill(value)
-
-        # Verify the value was set correctly using safe argument passing
-        try:
-            page.wait_for_function(
-                "([s, v]) => document.querySelector(s).value === v",
-                [selector, value],
-                timeout=1000
-            )
-        except PlaywrightTimeout:
-            # Retry once if verification failed
-            logger.warning(f"Verification failed for {selector}. Retrying fill...")
-            if use_type:
-                loc.clear()
-                loc.press_sequentially(value)
-            else:
-                loc.fill(value)
-
-            page.wait_for_function(
-                "([s, v]) => document.querySelector(s).value === v",
-                [selector, value],
-                timeout=1000
-            )
-
     def submit_application(self, application_data: Dict, auto_submit: bool = False, resident_type: str = 'dc') -> Dict:
         """
         Submit application to QuickBase form via browser automation
@@ -204,12 +162,12 @@ class QuickBaseFormAutomation:
                     page.select_option('select[name="_fid_76"]', 'Initial')
                     
                     # Name fields
-                    self.fill_and_verify(page, 'input[name="_fid_6"]', application_data['firstName'])
+                    page.fill('input[name="_fid_6"]', application_data['firstName'])
                     if application_data.get('middleInitial'):
-                        self.fill_and_verify(page, 'input[name="_fid_7"]', application_data['middleInitial'][:1])
-                    self.fill_and_verify(page, 'input[name="_fid_8"]', application_data['lastName'])
+                        page.fill('input[name="_fid_7"]', application_data['middleInitial'][:1])
+                    page.fill('input[name="_fid_8"]', application_data['lastName'])
                     if application_data.get('suffix'):
-                        self.fill_and_verify(page, 'input[name="_fid_35"]', application_data['suffix'])
+                        page.fill('input[name="_fid_35"]', application_data['suffix'])
                     
                     # DC DMV Real ID (set to "Yes" as requested)
                     page.select_option('select[name="_fid_122"]', 'Yes')
@@ -221,26 +179,27 @@ class QuickBaseFormAutomation:
                         logger.warning("Timeout waiting for DC DMV Real ID field, continuing anyway")
                     
                     # Date of Birth
-                    self.fill_and_verify(page, 'input[name="_fid_11"]', application_data['dateOfBirth'])
+                    page.fill('input[name="_fid_11"]', application_data['dateOfBirth'])
                     
                     # Address fields
-                    self.fill_and_verify(page, 'input[name="_fid_12"]', application_data['street'])
+                    page.fill('input[name="_fid_12"]', application_data['street'])
                     if application_data.get('aptSuite'):
-                        self.fill_and_verify(page, 'input[name="_fid_13"]', application_data['aptSuite'])
-                    self.fill_and_verify(page, 'input[name="_fid_14"]', application_data.get('city', 'Washington'))
+                        page.fill('input[name="_fid_13"]', application_data['aptSuite'])
+                    page.fill('input[name="_fid_14"]', application_data.get('city', 'Washington'))
                     page.select_option('select[name="_fid_15"]', application_data.get('state', 'DC'))
-                    self.fill_and_verify(page, 'input[name="_fid_16"]', application_data['zip'])
+                    page.fill('input[name="_fid_16"]', application_data['zip'])
                     
                     # Contact information
                     # Phone Number
                     page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
-                    # Use typing for phone number as it may have input masking/formatting logic
-                    self.fill_and_verify(page, 'input[name="_fid_17"]', application_data['phoneNumber'], use_type=True)
-                    logger.info("Phone number filled and verified")
+                    # Use typing for phone number as it has input masking
+                    page.click('input[name="_fid_17"]')
+                    page.locator('input[name="_fid_17"]').press_sequentially(application_data['phoneNumber'], delay=100)
+                    logger.info("Phone number filled")
                     
                     # Email fields
-                    self.fill_and_verify(page, 'input[name="_fid_18"]', application_data['email'])
-                    self.fill_and_verify(page, 'input[name="_fid_117"]', application_data['email'])
+                    page.fill('input[name="_fid_18"]', application_data['email'])
+                    page.fill('input[name="_fid_117"]', application_data['email'])
                     
                     # Certification Type
                     try:
@@ -276,39 +235,40 @@ class QuickBaseFormAutomation:
                         logger.info(f"Time Period set to: {time_period_value}")
                     
                     # Name fields
-                    self.fill_and_verify(page, 'input[name="_fid_6"]', application_data['firstName'])
+                    page.fill('input[name="_fid_6"]', application_data['firstName'])
                     if application_data.get('middleInitial'):
-                        self.fill_and_verify(page, 'input[name="_fid_7"]', application_data['middleInitial'][:1])
-                    self.fill_and_verify(page, 'input[name="_fid_8"]', application_data['lastName'])
+                        page.fill('input[name="_fid_7"]', application_data['middleInitial'][:1])
+                    page.fill('input[name="_fid_8"]', application_data['lastName'])
                     if application_data.get('suffix'):
-                        self.fill_and_verify(page, 'input[name="_fid_35"]', application_data['suffix'])
+                        page.fill('input[name="_fid_35"]', application_data['suffix'])
                     
                     # Date of Birth
-                    self.fill_and_verify(page, 'input[name="_fid_11"]', application_data['dateOfBirth'])
+                    page.fill('input[name="_fid_11"]', application_data['dateOfBirth'])
                     
                     # Address fields
-                    self.fill_and_verify(page, 'input[name="_fid_12"]', application_data['street'])
+                    page.fill('input[name="_fid_12"]', application_data['street'])
                     if application_data.get('aptSuite'):
-                        self.fill_and_verify(page, 'input[name="_fid_13"]', application_data['aptSuite'])
+                        page.fill('input[name="_fid_13"]', application_data['aptSuite'])
                     
                     # Country (default to United States)
                     page.select_option('select[name="_fid_175"]', 'United States of America')
                     
-                    self.fill_and_verify(page, 'input[name="_fid_14"]', application_data.get('city', ''))
+                    page.fill('input[name="_fid_14"]', application_data.get('city', ''))
                     page.select_option('select[name="_fid_15"]', application_data.get('state', ''))
-                    self.fill_and_verify(page, 'input[name="_fid_16"]', application_data['zip'])
+                    page.fill('input[name="_fid_16"]', application_data['zip'])
                     
                     # Contact information
                     # Phone Number
                     if application_data.get('phoneNumber'):
                         page.wait_for_selector('input[name="_fid_17"]', state='visible', timeout=2000)
-                        # Use typing for phone number as it may have input masking/formatting logic
-                        self.fill_and_verify(page, 'input[name="_fid_17"]', application_data['phoneNumber'], use_type=True)
-                        logger.info("Phone number filled and verified (Non-DC)")
+                        # Use typing for phone number as it has input masking
+                        page.click('input[name="_fid_17"]')
+                        page.locator('input[name="_fid_17"]').press_sequentially(application_data['phoneNumber'], delay=100)
+                        logger.info("Phone number filled (Non-DC)")
                     
                     # Email fields
-                    self.fill_and_verify(page, 'input[name="_fid_18"]', application_data['email'])
-                    self.fill_and_verify(page, 'input[name="_fid_117"]', application_data['email'])
+                    page.fill('input[name="_fid_18"]', application_data['email'])
+                    page.fill('input[name="_fid_117"]', application_data['email'])
                     
                     # Upload Government ID
                     page.set_input_files('input[name="_fid_50"]', temp_file_path)
@@ -337,7 +297,7 @@ class QuickBaseFormAutomation:
                 
                 # Signature name
                 signature_name = f"{application_data['firstName']} {application_data['lastName']}"
-                self.fill_and_verify(page, 'input[name="_fid_59"]', signature_name)
+                page.fill('input[name="_fid_59"]', signature_name)
                 
                 # Date field
                 date_value = page.input_value('input[name="_fid_60"]')
