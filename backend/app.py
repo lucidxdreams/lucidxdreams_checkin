@@ -614,7 +614,7 @@ def complete_checkin():
                     'registration_id': registration_id,
                     'expiration_date': expiration_date,
                     'barcode': data.get('barcode'),
-                    'raw_barcode_data': data.get('rawBarcodeData'),
+                    # 'raw_barcode_data': data.get('rawBarcodeData'), # Column missing in DB
                     'location': data.get('location'),
                     'status': 'checked_in',
                     'checked_in_at': datetime.now().isoformat()
