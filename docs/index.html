@@ -2884,20 +2884,19 @@
                          // Construct data: Raw ID Data + Tab + Reg ID + Tab + Exp Date
                          const barcodeContent = rawBarcodeText + '\t' + regId + '\t' + expDate;
 
-                         // Create a scrollable wrapper for the barcode to prevent squishing
-                         const scrollWrapper = document.createElement('div');
-                         scrollWrapper.style.overflowX = 'auto';
-                         scrollWrapper.style.padding = '10px 0';
-                         scrollWrapper.style.width = '100%';
-                         // Ensure scrollbar is visible if needed
-                         scrollWrapper.style.webkitOverflowScrolling = 'touch';
+                         // Create a wrapper
+                         const wrapper = document.createElement('div');
+                         wrapper.style.width = '100%';
+                         wrapper.style.padding = '10px 0';
 
                          const canvas = document.createElement('canvas');
                          canvas.id = 'flowhubBarcode';
-                         // Do not constrain width - allow it to overflow in the scroll container
-                         // This preserves the exact PDF417 aspect ratio and module size for scanning
-                         canvas.style.display = 'inline-block';
-                         canvas.style.background = 'white'; // Contrast
+                         // High resolution rendering with full width fit
+                         canvas.style.width = '100%';
+                         canvas.style.height = 'auto'; // Maintain aspect ratio
+                         canvas.style.display = 'block';
+                         canvas.style.background = 'white';
+                         canvas.style.imageRendering = 'pixelated'; // Crisp scaling
 
                          // Container for the barcode section
                          const barcodeContainer = document.createElement('div');
@@ -2917,9 +2916,9 @@
                          label.style.textTransform = 'uppercase';
                          label.style.letterSpacing = '1px';
 
-                         scrollWrapper.appendChild(canvas);
+                         wrapper.appendChild(canvas);
                          barcodeContainer.appendChild(label);
-                         barcodeContainer.appendChild(scrollWrapper);
+                         barcodeContainer.appendChild(wrapper);
 
                          const successDiv = document.getElementById('checkinSuccess');
                          // Remove any existing barcode container if present (retry scenario)
@@ -2931,12 +2930,12 @@
 
                          try {
                              // Use bwip-js to render PDF417
-                             // Scale 3 balances readability and size
+                             // Use high scale for resolution, rely on CSS to downscale visually
                              bwipjs.toCanvas(canvas, {
                                  bcid:        'pdf417',       // Barcode type
                                  text:        barcodeContent, // Text to encode
-                                 scale:       3,              // 3x scaling factor (Good balance)
-                                 height:      10,             // Aspect ratio height (relative to width)
+                                 scale:       5,              // High resolution
+                                 height:      15,             // Taller bars (better readability)
                                  includetext: false,          // No text below
                                  textxalign:  'center',
                                  padding:     10,             // White space padding
